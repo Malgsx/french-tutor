@@ -586,17 +586,17 @@ progress::-webkit-progress-value {
   flex: none;
   fill: currentColor;
 }
-.mic[data-mic="listening"],
-.mic[data-mic="connecting"] {
+.controls .mic[data-mic="listening"],
+.controls .mic[data-mic="connecting"] {
   background: var(--purple);
 }
 .mic[data-mic="listening"] svg {
   animation: mic-pulse 1.4s ease-in-out infinite;
 }
-.mic[data-mic="speaking"] {
+.controls .mic[data-mic="speaking"] {
   background: var(--yellow);
 }
-.mic[data-mic="paused"] {
+.controls .mic[data-mic="paused"] {
   background: #eee5ee;
   color: #5d3a7a;
 }

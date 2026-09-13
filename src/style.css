@@ -569,6 +569,9 @@ progress::-webkit-progress-value {
   font-size: 12px;
   background: transparent;
 }
+.controls #live {
+  align-self: center;
+}
 .mic {
   display: flex;
   align-items: center;

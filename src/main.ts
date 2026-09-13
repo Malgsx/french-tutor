@@ -468,7 +468,6 @@ el("live-form").onsubmit = async (event) => {
   )!;
   button.disabled = true;
   try {
-    liveDialog.close();
     clearHints();
     el("messages").replaceChildren();
     captions.clear();
@@ -488,7 +487,12 @@ el("live-form").onsubmit = async (event) => {
       },
     });
     controls();
-    await live.start();
+    const started = live.start();
+    // Close after this click finishes so Approve cannot fall through onto
+    // the avatar or mic and pause the session before the track arrives.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    liveDialog.close();
+    await started;
   } catch (error) {
     report(error, "live-status");
   } finally {

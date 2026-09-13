@@ -45,8 +45,9 @@ test("demo mode keeps the pill informational", () => {
 test("idle -> connecting -> live -> paused -> live transitions", () => {
   const connecting = stageView({ ...idle, live: true, avatarState: "thinking" });
   assert.equal(connecting.phase, "connecting");
-  assert.equal(connecting.action, "pause");
-  assert.equal(connecting.icon, "⏸");
+  assert.equal(connecting.action, "none");
+  assert.equal(connecting.icon, "●");
+  assert.match(connecting.ariaLabel, /waiting for microphone permission/);
   const live = stageView({
     ...idle,
     live: true,
@@ -111,7 +112,8 @@ test("microphone button mirrors the pill and adds cut-in while Miette speaks", (
   assert.equal(demo.action, "none");
   const connecting = micView({ ...idle, live: true, avatarState: "thinking" });
   assert.equal(connecting.state, "connecting");
-  assert.equal(connecting.action, "pause");
+  assert.equal(connecting.action, "none");
+  assert.match(connecting.ariaLabel, /waiting for microphone permission/);
   const listening = micView({
     ...idle,
     live: true,
@@ -150,6 +152,14 @@ test("microphone button mirrors the pill and adds cut-in while Miette speaks", (
   assert.equal(view.phase, "paused");
   assert.equal(view.mic.state, "paused");
   assert.equal(view.action, view.mic.action);
+});
+
+test("connecting mic and pill do not pause, so a permission click cannot mute the track", () => {
+  const view = stageView({ ...idle, live: true, avatarState: "thinking" });
+  assert.equal(view.action, "none");
+  assert.equal(view.mic.action, "none");
+  assert.equal(view.phase, "connecting");
+  assert.equal(view.mic.state, "connecting");
 });
 
 test("remaining time formatting rounds up and never goes negative", () => {

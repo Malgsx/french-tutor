@@ -35,11 +35,13 @@ test("idle pill starts live when available and explains when it is not", () => {
   assert.equal(afterError.label, labels.error);
 });
 
-test("demo mode keeps the pill informational", () => {
+test("demo mode lets a click replay Miette’s last line", () => {
   const demo = stageView({ ...idle, demo: true, avatarState: "listening" });
   assert.equal(demo.phase, "demo");
-  assert.equal(demo.action, "none");
+  assert.equal(demo.action, "replay");
+  assert.equal(demo.mic.action, "none");
   assert.equal(demo.label, "Listening · your turn (demo)");
+  assert.match(demo.ariaLabel, /Play Miette/);
 });
 
 test("idle -> connecting -> live -> paused -> live transitions", () => {

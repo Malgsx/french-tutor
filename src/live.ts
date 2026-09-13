@@ -16,6 +16,9 @@ type Hooks = {
   lesson: (context: string) => Promise<string>;
 };
 export const LIVE_LIMIT_MS = 600000;
+export const LIVE_ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+];
 export class LiveSession {
   private peer?: RTCPeerConnection;
   private channel?: RTCDataChannel;
@@ -27,6 +30,7 @@ export class LiveSession {
   private limitTimer?: ReturnType<typeof setTimeout>;
   private abort = new AbortController();
   private ready = false;
+  private negotiated = false;
   private closing = false;
   private disposed = false;
   // Pause, Mute mic and Interrupt are independent switches; apply() reconciles them.
@@ -69,8 +73,13 @@ export class LiveSession {
     this.hooks.state("thinking");
     this.hooks.notice("Connecting · microphone permission required");
     try {
-      const peer = new RTCPeerConnection();
+      this.audio.autoplay = true;
+      this.audio.muted = false;
+      void this.audio.play?.().catch(() => {});
+      const peer = new RTCPeerConnection({ iceServers: LIVE_ICE_SERVERS });
       this.peer = peer;
+      peer.ontrack = (event) => this.hear(event.track);
+      peer.ondatachannel = ({ channel }) => this.bindChannel(channel);
       this.mic = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false,
@@ -82,62 +91,20 @@ export class LiveSession {
       this.hooks.notice("Microphone ON · connecting · audio is sent to OpenAI");
       this.mic.getAudioTracks().forEach((t) => peer.addTrack(t, this.mic!));
       this.apply();
-      this.context = new AudioContext();
-      await this.context.resume();
-      peer.ontrack = (event) => {
-        this.audio.srcObject = new MediaStream([event.track]);
-        void this.audio
-          .play()
-          .catch(() =>
-            this.hooks.notice(
-              "Microphone ON · press play in the audio controls to hear Miette.",
-            ),
-          );
-        const analyser = this.context!.createAnalyser();
-        analyser.fftSize = 256;
-        this.context!.createMediaStreamSource(
-          this.audio.srcObject as MediaStream,
-        ).connect(analyser);
-        const data = new Uint8Array(analyser.fftSize);
-        let lastSound = 0;
-        this.meter = setInterval(() => {
-          if (!this.ready || this.closing || this.paused) return;
-          analyser.getByteTimeDomainData(data);
-          if (
-            data.some((value) => Math.abs(value - 128) > 5) &&
-            !this.audio.muted &&
-            !this.audio.paused
-          )
-            lastSound = Date.now();
-          this.hooks.state(
-            Date.now() - lastSound < 220
-              ? "speaking"
-              : this.pending
-                ? "thinking"
-                : "listening",
-          );
-        }, 100);
-      };
-      this.channel = peer.createDataChannel("oai-events");
-      this.channel.onmessage = ({ data }) => {
-        try {
-          void this.receive(JSON.parse(data) as LiveEvent).catch(() =>
-            this.fail(
-              "Lesson delegation failed. End the session and try demo mode.",
-            ),
-          );
-        } catch {
-          this.fail("Invalid session event.");
-        }
-      };
-      this.channel.onclose = () => {
-        if (!this.disposed) this.fail("Disconnected · final usage unconfirmed");
-      };
+      try {
+        this.context = new AudioContext();
+        await this.context.resume();
+      } catch {
+        this.context = undefined;
+      }
+      this.bindChannel(peer.createDataChannel("oai-events"));
       peer.onconnectionstatechange = () => {
         if (peer.connectionState === "failed")
           this.fail("Connection lost · final usage unconfirmed");
       };
-      await peer.setLocalDescription(await peer.createOffer());
+      await peer.setLocalDescription(
+        await peer.createOffer({ offerToReceiveAudio: true }),
+      );
       if (peer.iceGatheringState !== "complete")
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
@@ -171,6 +138,7 @@ export class LiveSession {
         type: "answer",
         sdp: result.transport.sdp,
       });
+      this.negotiated = true;
       // HTTP creation starts Live. Never send session.start or Realtime response events.
       if (!this.ready)
         this.readyTimer = setTimeout(
@@ -267,6 +235,58 @@ export class LiveSession {
         this.pending--;
       }
     }
+  }
+  private hear(track: MediaStreamTrack) {
+    this.audio.autoplay = true;
+    this.audio.srcObject = new MediaStream([track]);
+    void this.audio.play?.().catch(() =>
+      this.hooks.notice(
+        "Microphone ON · press play in the audio controls to hear Miette.",
+      ),
+    );
+    if (!this.context) return;
+    const analyser = this.context.createAnalyser();
+    analyser.fftSize = 256;
+    this.context
+      .createMediaStreamSource(this.audio.srcObject as MediaStream)
+      .connect(analyser);
+    const data = new Uint8Array(analyser.fftSize);
+    let lastSound = 0;
+    this.meter = setInterval(() => {
+      if (!this.ready || this.closing || this.paused) return;
+      analyser.getByteTimeDomainData(data);
+      if (
+        data.some((value) => Math.abs(value - 128) > 5) &&
+        !this.audio.muted &&
+        !this.audio.paused
+      )
+        lastSound = Date.now();
+      this.hooks.state(
+        Date.now() - lastSound < 220
+          ? "speaking"
+          : this.pending
+            ? "thinking"
+            : "listening",
+      );
+    }, 100);
+  }
+  private bindChannel(channel: RTCDataChannel) {
+    this.channel = channel;
+    channel.onmessage = ({ data }) => {
+      try {
+        void this.receive(JSON.parse(data) as LiveEvent).catch(() =>
+          this.fail(
+            "Lesson delegation failed. End the session and try demo mode.",
+          ),
+        );
+      } catch {
+        this.fail("Invalid session event.");
+      }
+    };
+    channel.onclose = () => {
+      if (!this.disposed && (this.ready || this.negotiated))
+        this.fail("Disconnected · final usage unconfirmed");
+    };
   }
   send(event: object) {
     if (this.ready && !this.closing && this.channel?.readyState === "open")
@@ -390,6 +410,7 @@ export class LiveSession {
     if (this.disposed) return;
     this.disposed = true;
     this.ready = false;
+    this.negotiated = false;
     this.abort.abort();
     clearTimeout(this.readyTimer);
     clearTimeout(this.closeTimer);

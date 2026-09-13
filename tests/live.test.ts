@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIVE_LIMIT_MS, LiveSession } from "../src/live";
+import { LIVE_ICE_SERVERS, LIVE_LIMIT_MS, LiveSession } from "../src/live";
 import type { AvatarState, LiveEvent } from "../src/protocol";
 
-function harness() {
+function harness(options: { resumeError?: boolean; closeOnBind?: boolean } = {}) {
   const sent: { type: string; delegation_id?: string }[] = [];
   const states: AvatarState[] = [];
   const notices: string[] = [];
@@ -21,15 +21,20 @@ function harness() {
     },
   };
   const order: string[] = [];
+  const peerConfigs: RTCConfiguration[] = [];
   class Peer {
     iceGatheringState = "complete";
     localDescription = { sdp: "fake-sdp" };
+    constructor(config: RTCConfiguration = {}) {
+      peerConfigs.push(config);
+    }
     addTrack() {
       order.push("track");
     }
     createDataChannel(label: string) {
       assert.equal(label, "oai-events");
       order.push("channel");
+      if (options.closeOnBind) queueMicrotask(() => channel.onclose());
       return channel;
     }
     async createOffer() {
@@ -43,7 +48,9 @@ function harness() {
     }
   }
   class Audio {
-    async resume() {}
+    async resume() {
+      if (options.resumeError) throw new Error("blocked");
+    }
     async close() {}
   }
   const originals = [
@@ -83,7 +90,9 @@ function harness() {
   let resolveLesson: (value: string) => void = () => {};
   const audio = {
     muted: false,
+    autoplay: false,
     srcObject: null,
+    play: async () => {},
   } as unknown as HTMLAudioElement;
   const session = new LiveSession(audio, {
     state: (state) => states.push(state),
@@ -113,6 +122,8 @@ function harness() {
     track,
     audio,
     order,
+    peerConfigs,
+    channel,
     emit,
     resolveLesson: (value: string) => resolveLesson(value),
     restore,
@@ -125,6 +136,8 @@ test("WebRTC readiness, exact delegation IDs, mute, late work and graceful close
   try {
     await session.start();
     assert.equal(track.enabled, true, "mic track stays enabled after permission");
+    assert.equal(audio.autoplay, true);
+    assert.deepEqual(h.peerConfigs[0]?.iceServers, LIVE_ICE_SERVERS);
     assert.deepEqual(h.order, ["track", "channel", "offer"]);
     session.send({ type: "must-not-send" });
     assert.equal(sent.length, 0);
@@ -360,6 +373,30 @@ test("pausing before the microphone is granted applies once the track arrives", 
     assert.equal(track.enabled, true);
     assert.equal(audio.muted, false);
     assert.equal(h.states.at(-1), "listening");
+  } finally {
+    h.restore();
+  }
+});
+
+test("AudioContext resume failure does not tear down the mic after permission", async () => {
+  const h = harness({ resumeError: true });
+  const { session, track } = h;
+  try {
+    await session.start();
+    assert.equal(h.counters.ended, false);
+    assert.equal(track.enabled, true);
+    assert.match(h.notices.at(-1) ?? "", /connecting/);
+  } finally {
+    h.restore();
+  }
+});
+
+test("a data-channel close before negotiation does not end the session", async () => {
+  const h = harness({ closeOnBind: true });
+  try {
+    await h.session.start();
+    assert.equal(h.counters.ended, false);
+    assert.equal(h.track.enabled, true);
   } finally {
     h.restore();
   }

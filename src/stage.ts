@@ -4,7 +4,13 @@ import type { AvatarState } from "./protocol";
 // session facts and applies the result to the DOM, so the transitions are
 // testable without a browser.
 export type StagePhase = "idle" | "demo" | "connecting" | "live" | "paused";
-export type StageAction = "start" | "unavailable" | "pause" | "resume" | "none";
+export type StageAction =
+  | "start"
+  | "unavailable"
+  | "pause"
+  | "resume"
+  | "replay"
+  | "none";
 export type MicState =
   | "idle"
   | "unavailable"
@@ -161,10 +167,10 @@ export function stageView(input: StageInput): StageView {
   if (input.demo)
     return {
       phase: "demo",
-      action: "none",
+      action: "replay",
       icon: "●",
       label: `${labels[input.avatarState]} (demo)`,
-      ariaLabel: "Demo in progress · End session to start live voice",
+      ariaLabel: "Play Miette’s last demo line",
       mic,
     };
   return {

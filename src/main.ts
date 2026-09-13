@@ -2,7 +2,7 @@ import "./style.css";
 import { createAvatar } from "./avatar";
 import { api, commentary, type AvatarState, type Fragment } from "./protocol";
 import { LiveSession, delegatedLesson } from "./live";
-import { stageView, UNAVAILABLE_REASON } from "./stage";
+import { stageView, UNAVAILABLE_REASON, type MicAction } from "./stage";
 import type { Settings, Progress, Word, Plan } from "../server/lesson";
 
 declare global {
@@ -29,7 +29,6 @@ let demo = false;
 let live: LiveSession | undefined;
 let revision = 0;
 let muted = false;
-let interrupted = false;
 let animationTimer: ReturnType<typeof setTimeout>;
 let stageTimer: ReturnType<typeof setInterval> | undefined;
 let avatarState: AvatarState = "idle";
@@ -62,25 +61,35 @@ function renderStage() {
   toggle.title = view.ariaLabel;
   toggle.disabled = view.action === "none";
   el("avatar").classList.toggle("actionable", view.action !== "none");
+  const mic = el<HTMLButtonElement>("mic");
+  mic.dataset.mic = view.mic.state;
+  mic.setAttribute("aria-label", view.mic.ariaLabel);
+  mic.title = view.mic.ariaLabel;
+  mic.disabled = view.mic.action === "none";
+  el("mic-caption").textContent = view.mic.caption;
+  el("interrupt").textContent = live?.isSilenced ? "Resume audio" : "Interrupt";
   if (live && !stageTimer) stageTimer = setInterval(renderStage, 1000);
   if (!live && stageTimer) {
     clearInterval(stageTimer);
     stageTimer = undefined;
   }
 }
-function stageHint(text: string) {
-  el("stage-hint").textContent = text;
-  el("stage-hint").hidden = !text;
+function hint(target: "stage-hint" | "mic-hint", text: string) {
+  el(target).textContent = text;
+  el(target).hidden = !text;
 }
-function stagePress() {
-  const { action } = currentStage();
-  if (action !== "unavailable") stageHint("");
+function clearHints() {
+  hint("stage-hint", "");
+  hint("mic-hint", "");
+}
+function press(action: MicAction, hintTarget: "stage-hint" | "mic-hint") {
+  clearHints();
   switch (action) {
     case "start":
       liveDialog.showModal();
       break;
     case "unavailable":
-      stageHint(UNAVAILABLE_REASON);
+      hint(hintTarget, UNAVAILABLE_REASON);
       break;
     case "pause":
       live?.pause();
@@ -88,9 +97,14 @@ function stagePress() {
     case "resume":
       live?.resume();
       break;
+    case "interrupt":
+      live?.interrupt();
+      break;
   }
   renderStage();
 }
+const stagePress = () => press(currentStage().action, "stage-hint");
+const micPress = () => press(currentStage().mic.action, "mic-hint");
 function setState(state: AvatarState) {
   avatarState = state;
   avatar?.setState(state);
@@ -281,10 +295,9 @@ el("mute").onclick = () => {
   el("mute").textContent = muted ? "Unmute mic" : "Mute mic";
 };
 el("interrupt").onclick = () => {
-  interrupted = !interrupted;
-  if (interrupted) live?.interrupt();
-  else live?.resumeAudio();
-  el("interrupt").textContent = interrupted ? "Resume audio" : "Interrupt";
+  if (live?.isSilenced) live.resumeAudio();
+  else live?.interrupt();
+  renderStage();
 };
 
 const parentDialog = el<HTMLDialogElement>("parent-dialog");
@@ -434,6 +447,7 @@ const liveDialog = el<HTMLDialogElement>("live-dialog");
 el("live").onclick = () => liveDialog.showModal();
 el("stage-toggle").onclick = stagePress;
 el("avatar").onclick = stagePress;
+el("mic").onclick = micPress;
 el("cancel-live").onclick = () => liveDialog.close();
 liveDialog.onclose = () => {
   el<HTMLInputElement>("approve-live").checked = false;
@@ -446,11 +460,10 @@ el("live-form").onsubmit = async (event) => {
   button.disabled = true;
   try {
     liveDialog.close();
-    stageHint("");
+    clearHints();
     el("messages").replaceChildren();
     captions.clear();
     muted = false;
-    interrupted = false;
     live = new LiveSession(el<HTMLAudioElement>("audio"), {
       state: setState,
       notice,

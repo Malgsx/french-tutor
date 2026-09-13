@@ -569,6 +569,54 @@ progress::-webkit-progress-value {
   font-size: 12px;
   background: transparent;
 }
+.mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 12px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  background: #fffdf6;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.mic svg {
+  flex: none;
+  fill: currentColor;
+}
+.mic[data-mic="listening"],
+.mic[data-mic="connecting"] {
+  background: var(--purple);
+}
+.mic[data-mic="listening"] svg {
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+.mic[data-mic="speaking"] {
+  background: var(--yellow);
+}
+.mic[data-mic="paused"] {
+  background: #eee5ee;
+  color: #5d3a7a;
+}
+.mic[data-mic="paused"] svg,
+.mic[data-mic="unavailable"] svg,
+.mic[data-mic="demo"] svg {
+  opacity: 0.45;
+}
+.mic:disabled {
+  box-shadow: none;
+}
+.mic-hint {
+  margin: 0;
+  text-align: center;
+}
+@keyframes mic-pulse {
+  50% {
+    transform: scale(1.15);
+  }
+}
 .session-tools {
   display: flex;
   gap: 6px;

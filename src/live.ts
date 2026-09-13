@@ -32,6 +32,9 @@ export class LiveSession {
   private paused = false;
   private micMuted = false;
   private silenced = false;
+  // After a cut-in, playback returns only once the learner has spoken and a
+  // new assistant transcript arrives, so a lingering old answer stays quiet.
+  private cutIn: "none" | "waiting-for-learner" | "waiting-for-reply" = "none";
   private deadline?: number;
   private history: Fragment[] = [];
   private delegations = new Set<string>();
@@ -45,6 +48,9 @@ export class LiveSession {
   }
   get isPaused() {
     return this.paused;
+  }
+  get isSilenced() {
+    return this.silenced;
   }
   remainingMs() {
     return this.deadline === undefined
@@ -206,6 +212,19 @@ export class LiveSession {
       this.history.push(fragment);
       this.history = this.history.slice(-500);
       this.hooks.fragment(fragment);
+      if (fragment.role === "user" && this.cutIn === "waiting-for-learner")
+        this.cutIn = "waiting-for-reply";
+      else if (
+        fragment.role === "assistant" &&
+        this.cutIn === "waiting-for-reply"
+      ) {
+        this.cutIn = "none";
+        this.silenced = false;
+        this.apply();
+        this.hooks.notice(
+          "Miette is answering · playback back on · you can interrupt again",
+        );
+      }
     }
     if (
       event.type === "session.delegation.created" &&
@@ -275,23 +294,30 @@ export class LiveSession {
         : "Microphone ON · speak naturally; you can interrupt",
     );
   }
+  // Cut-in: silence playback immediately and ask the model to stop. The append
+  // is unacknowledged, so the local mute is what guarantees quiet; the model
+  // itself also stops on server-side voice interruption when the learner talks.
   interrupt() {
+    if (this.closing || this.disposed) return;
     this.silenced = true;
+    this.cutIn = "waiting-for-learner";
     this.apply();
     this.send({
       type: "session.instructions.append",
       delegation_id: null,
       event_id: crypto.randomUUID(),
       content:
-        "Stop speaking now and wait for the learner. Do not repeat the interrupted answer.",
+        "The learner interrupted you. Stop speaking now and listen. Do not repeat the interrupted answer. When they speak, answer their question briefly as their French tutor: simple French first, a short English explanation if helpful, one gentle correction at most, then invite them to continue practising.",
     });
+    if (this.ready && !this.paused) this.hooks.state("listening");
     this.hooks.notice(
-      "Playback silenced · microphone unchanged · select Resume audio when ready",
+      "Miette silenced · your turn, speak now · her reply plays automatically (Resume audio brings sound back sooner)",
     );
   }
   resumeAudio() {
     if (this.closing || this.disposed) return;
     this.silenced = false;
+    this.cutIn = "none";
     this.apply();
   }
   stop() {

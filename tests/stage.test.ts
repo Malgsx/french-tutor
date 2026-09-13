@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   formatRemaining,
   labels,
+  micView,
   stageView,
   type StageInput,
 } from "../src/stage";
@@ -81,6 +82,55 @@ test("idle -> connecting -> live -> paused -> live transitions", () => {
   assert.equal(resumed.label, "Speaking · jump in anytime · 1:00 left");
   const ended = stageView({ ...idle, avatarState: "idle" });
   assert.equal(ended.action, "start");
+});
+
+test("microphone button mirrors the pill and adds cut-in while Miette speaks", () => {
+  const start = micView(idle);
+  assert.equal(start.state, "idle");
+  assert.equal(start.action, "start");
+  assert.match(start.ariaLabel, /Start a live voice conversation/);
+  assert.match(start.ariaLabel, /parent approval/);
+  const off = micView({ ...idle, liveAvailable: false });
+  assert.equal(off.state, "unavailable");
+  assert.equal(off.action, "unavailable");
+  const demo = micView({ ...idle, demo: true });
+  assert.equal(demo.state, "demo");
+  assert.equal(demo.action, "none");
+  const connecting = micView({ ...idle, live: true, avatarState: "thinking" });
+  assert.equal(connecting.state, "connecting");
+  assert.equal(connecting.action, "pause");
+  const listening = micView({
+    ...idle,
+    live: true,
+    ready: true,
+    avatarState: "listening",
+  });
+  assert.equal(listening.state, "listening");
+  assert.equal(listening.action, "pause");
+  assert.match(listening.ariaLabel, /listening/);
+  const speaking = micView({
+    ...idle,
+    live: true,
+    ready: true,
+    avatarState: "speaking",
+  });
+  assert.equal(speaking.state, "speaking");
+  assert.equal(speaking.action, "interrupt");
+  assert.match(speaking.ariaLabel, /interrupt/);
+  const paused = micView({
+    ...idle,
+    live: true,
+    ready: true,
+    paused: true,
+    avatarState: "speaking",
+  });
+  assert.equal(paused.state, "paused");
+  assert.equal(paused.action, "resume");
+  // Both controls derive from one input, so pause state can never disagree.
+  const view = stageView({ ...idle, live: true, ready: true, paused: true });
+  assert.equal(view.phase, "paused");
+  assert.equal(view.mic.state, "paused");
+  assert.equal(view.action, view.mic.action);
 });
 
 test("remaining time formatting rounds up and never goes negative", () => {

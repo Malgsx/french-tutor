@@ -230,6 +230,59 @@ test("pause keeps the session open, mutes mic and playback, and play resumes ins
   }
 });
 
+test("cut-in silences Miette, keeps the session and mic, and restores sound for her reply", async () => {
+  const h = harness();
+  const { session, sent, track, audio, emit } = h;
+  const say = (role: "user" | "assistant", text: string) =>
+    emit({
+      type:
+        role === "user"
+          ? "session.input_transcript.delta"
+          : "session.output_transcript.delta",
+      delta: text,
+      start_ms: 0,
+      end_ms: 100,
+    });
+  try {
+    await session.start();
+    await emit({ type: "session.started" });
+    session.interrupt();
+    assert.equal(session.isSilenced, true);
+    assert.equal(audio.muted, true, "playback stops immediately");
+    assert.equal(track.enabled, true, "learner can talk right away");
+    assert.equal(h.counters.closed, false, "session is not ended");
+    const stop = sent.at(-1) as { type: string; content?: string };
+    assert.equal(stop.type, "session.instructions.append");
+    assert.match(stop.content!, /Stop speaking now/);
+    assert.match(stop.content!, /French tutor/);
+    assert.equal(h.states.at(-1), "listening");
+    await say("assistant", "…tail of the interrupted answer");
+    assert.equal(audio.muted, true, "old answer stays quiet");
+    await say("user", "Comment dit-on cat ?");
+    assert.equal(audio.muted, true, "still quiet until she replies");
+    await say("assistant", "Un chat !");
+    assert.equal(session.isSilenced, false);
+    assert.equal(audio.muted, false, "reply is audible");
+    session.interrupt();
+    session.resumeAudio();
+    assert.equal(audio.muted, false, "manual Resume audio works too");
+    await say("user", "encore");
+    await say("assistant", "Encore une fois");
+    assert.equal(audio.muted, false);
+    session.interrupt();
+    session.pause();
+    session.resume();
+    assert.equal(audio.muted, true, "resume from pause keeps the cut-in");
+    await say("user", "?");
+    await say("assistant", "Oui");
+    assert.equal(audio.muted, false);
+    await emit({ type: "session.closed", reason: "close_requested" });
+    assert.equal(h.counters.ended, true);
+  } finally {
+    h.restore();
+  }
+});
+
 test("pausing before the microphone is granted applies once the track arrives", async () => {
   const h = harness();
   const { session, track, audio } = h;

@@ -92,6 +92,7 @@ body.desktop .controls {
 }
 body.desktop .session-tools,
 body.desktop #status,
+body.desktop .mic-hint,
 body.desktop audio {
   grid-column: 1 / -1;
 }

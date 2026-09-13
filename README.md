@@ -180,15 +180,15 @@ The server reads environment variables, then an optional ignored `tutor/.env`.
 Existing environment values take precedence. Never commit `.env` or put a key in
 `VITE_*`, renderer code, Electron preload, screenshots, logs, or a chat message.
 
-| Variable | Default / meaning |
-| --- | --- |
-| `PORT` | `3030`; server binds only to `127.0.0.1` |
-| `APP_ORIGIN` | Exact browser origin (scheme, host, port); defaults to `PUBLIC_URL`, then `http://localhost:<PORT>` |
-| `AMP_ORB` | Amp sets `1` in orbs, enabling collaborator-only access and requiring HTTPS `PUBLIC_URL` |
-| `PUBLIC_URL` | Amp-generated portal URL; in an orb this takes precedence over `APP_ORIGIN` |
-| `LIVE_ENABLED` | Only the literal `true` permits live session creation |
-| `OPENAI_API_KEY` | Server-only OpenAI project key; required for live |
-| `DATA_FILE` | `.local/state.json`; local settings, approved plan, progress, optional transcripts |
+| Variable         | Default / meaning                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `PORT`           | `3030`; server binds only to `127.0.0.1`                                                            |
+| `APP_ORIGIN`     | Exact browser origin (scheme, host, port); defaults to `PUBLIC_URL`, then `http://localhost:<PORT>` |
+| `AMP_ORB`        | Amp sets `1` in orbs, enabling collaborator-only access and requiring HTTPS `PUBLIC_URL`            |
+| `PUBLIC_URL`     | Amp-generated portal URL; in an orb this takes precedence over `APP_ORIGIN`                         |
+| `LIVE_ENABLED`   | Only the literal `true` permits live session creation                                               |
+| `OPENAI_API_KEY` | Server-only OpenAI project key; required for live                                                   |
+| `DATA_FILE`      | `.local/state.json`; local settings, approved plan, progress, optional transcripts                  |
 
 Configure secrets through a password manager/environment injector or a private
 `.env` with mode `600`. On macOS, the desktop shell trusts **only**
@@ -231,7 +231,13 @@ The broker uses the current official **`POST /v1/live/sessions`** JSON flow:
 
 The UI reports microphone state separately from the avatar. **Mute mic** disables
 the device track but does not end billing. **Interrupt** silences playback and
-asks the model to stop; **Resume audio** enables playback again. Natural speech
+asks the model to stop; **Resume audio** enables playback again. The status pill
+under the avatar (and the avatar itself) starts live when idle, going through the
+same parent-approval dialog; if live is disabled it explains why inline. While
+live, the pill is a pause/play button: pause disables the microphone track and
+silences playback but keeps the session open, so live time is still billed and
+play resumes instantly. The pill also shows the time left before the ten-minute
+stop. Natural speech
 interruptions remain available. The browser ends practice after ten minutes;
 this is not a tamper-proof server-enforced spending cap. Starts are limited to
 one per minute per broker. Set a project budget/alerts and supervise use.
@@ -384,15 +390,15 @@ for the current implementation.
 
 ## Source map and verification
 
-| Area | Files |
-| --- | --- |
-| Broker/config | `server/app.ts`, `server/index.ts` |
-| Lesson prompts/exercises/storage | `server/lesson.ts`, `server/store.ts` |
-| Upload/extraction | `server/upload.ts`, `server/extract.mjs` |
-| WebRTC/events/lifecycle | `src/live.ts`, `src/protocol.ts` |
-| Web UI/avatar | `src/main.ts`, `src/avatar.ts`, `src/*.css`, `web/index.html` |
-| Desktop shell | `desktop/main.cjs`, `desktop/preload.cjs` |
-| Tests | `tests/core.test.ts`, `tests/documents.test.ts`, `tests/live.test.ts`, `tests/desktop.smoke.ts` |
+| Area                             | Files                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Broker/config                    | `server/app.ts`, `server/index.ts`                                                              |
+| Lesson prompts/exercises/storage | `server/lesson.ts`, `server/store.ts`                                                           |
+| Upload/extraction                | `server/upload.ts`, `server/extract.mjs`                                                        |
+| WebRTC/events/lifecycle          | `src/live.ts`, `src/protocol.ts`                                                                |
+| Web UI/avatar                    | `src/main.ts`, `src/avatar.ts`, `src/*.css`, `web/index.html`                                   |
+| Desktop shell                    | `desktop/main.cjs`, `desktop/preload.cjs`                                                       |
+| Tests                            | `tests/core.test.ts`, `tests/documents.test.ts`, `tests/live.test.ts`, `tests/desktop.smoke.ts` |
 
 ```sh
 npm ci

@@ -111,6 +111,57 @@ the live model rather than inventing an adaptive demo curriculum.
 `npm run dev` also runs the broker; it does **not** run Vite HMR. Rebuild after
 frontend edits. `npm start` must run from `tutor/` so it finds `dist/` and `.env`.
 
+## Private Amp orb
+
+Use the personal Amp project [mal/french-tutor](https://ampcode.com/@mal/french-tutor),
+linked to this GitHub repository. Start a **New Orb** for that project. The orb
+runs the browser tutor, not the macOS menu-bar app. Do not use `desktop:live` there.
+
+1. In that project's **Secrets & Env Vars**, privately configure `OPENAI_API_KEY`
+   if it is not already supplied by your personal settings. A key scoped only to
+   another project is not sufficient. Never paste the key into a thread, setup
+   script, service command or Git file.
+2. **Live is already enabled for the orb service** in `.amp/services.yaml`:
+   `env: { LIVE_ENABLED: "true" }`. The name is case-sensitive and all uppercase.
+   This is ordinary configuration, not a secret. A missing key still disables Live.
+   To disable Live, change that service value to `"false"` and restart it.
+3. `.agents/setup` installs dependencies with Node 26.5 and checks/builds the web
+   app. It strips the OpenAI key from its process, skips the Electron binary, and
+   does not start services or save credentials. No resume hook is needed: Amp
+   supervises the service across wakes.
+4. In the orb Terminal, run `amp orb services ensure`. In an existing orb that
+   predates these files, first pull the changes without overwriting local work
+   and run `.agents/setup` once. Amp supplies `PORT`, `PUBLIC_URL` and `AMP_ORB=1`;
+   do not copy a localhost `APP_ORIGIN` or hardcode a generated portal hostname.
+5. Open the exact generated portal URL **in a new browser tab**, signed in to Amp
+   as the thread owner or an invited collaborator. Keep the portal private. The
+   app deliberately blocks framing; microphone access should happen in the
+   top-level HTTPS page, not the embedded Portal pane.
+6. Try **Start demo** first, then **Live voice**, approve cost/data sharing and
+   allow the browser microphone. End promptly with **End session**.
+
+After changing secrets or service configuration, run inside the orb:
+
+```sh
+amp orb service restart tutor
+amp orb service status tutor
+```
+
+The service prints only whether Live is available, never the key. A 403 means
+the viewer is not an authorized thread collaborator, or a write used the wrong
+origin. The app requires Amp's exact `collaborator=yes` proxy claim on pages and
+API routes, even if someone accidentally makes the portal public. Read-only
+workspace access is not enough. Only `/healthz` is exempt; it returns `{ok:true}`
+and no settings, key status or learning data. The listener remains loopback-only.
+This header-based protection is for Amp's trusted proxy, **not** generic hosting
+where callers could forge the header.
+
+Orb data stays in that orb's ignored `.local/state.json`. It survives ordinary
+sleep/wake, but is not a cross-orb database or backup; fresh orbs and your Mac do
+not automatically share progress. Do not put family data into setup snapshots.
+Only invite trusted collaborators: they share access to the single-family app.
+This private development portal is not an always-on production deployment.
+
 ### Environment
 
 The server reads environment variables, then an optional ignored `tutor/.env`.
@@ -121,6 +172,8 @@ Existing environment values take precedence. Never commit `.env` or put a key in
 | --- | --- |
 | `PORT` | `3030`; server binds only to `127.0.0.1` |
 | `APP_ORIGIN` | Exact browser origin (scheme, host, port); defaults to `PUBLIC_URL`, then `http://localhost:<PORT>` |
+| `AMP_ORB` | Amp sets `1` in orbs, enabling collaborator-only access and requiring HTTPS `PUBLIC_URL` |
+| `PUBLIC_URL` | Amp-generated portal URL; in an orb this takes precedence over `APP_ORIGIN` |
 | `LIVE_ENABLED` | Only the literal `true` permits live session creation |
 | `OPENAI_API_KEY` | Server-only OpenAI project key; required for live |
 | `DATA_FILE` | `.local/state.json`; local settings, approved plan, progress, optional transcripts |
@@ -141,7 +194,8 @@ controls. The Home app and its service configuration remain unchanged.
 
 Set `OPENAI_API_KEY` privately and `LIVE_ENABLED=true`, restart the broker, select
 **Live voice**, and approve the cost/data-sharing checkbox. Browser microphone
-permission is requested only then. Use localhost for this password-free version.
+permission is requested only then. Use localhost on your Mac or the authenticated
+private Amp portal described above.
 
 The broker uses the current official **`POST /v1/live/sessions`** JSON flow:
 

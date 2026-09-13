@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Setup prepares a snapshot, never authenticates or starts a service.
+# Orbs use the browser tutor; do not download the macOS/Linux Electron binary.
+unset OPENAI_API_KEY
+export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+printf 'Installing French Tutor dependencies with Node 26.5…\n'
+npm exec --yes --package=node@26.5.0 -- npm ci
+printf 'Checking and building the browser tutor…\n'
+npm exec --yes --package=node@26.5.0 -- sh -c 'npm run check && npm test && npm run build'

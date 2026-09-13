@@ -1,0 +1,14 @@
+services:
+  tutor:
+    command: >-
+      npm exec --yes --package=node@26.5.0 -- sh -c
+      'npm run build && exec node --import tsx server/index.ts'
+    health: /healthz
+    env:
+      LIVE_ENABLED: "true"
+    review: false
+    agent: off
+    portal:
+      url: /
+      title: French Tutor Live Avatar
+      description: Open in a new browser tab for microphone access. Sign in as the thread owner or an invited collaborator. Each paid voice session requires approval.

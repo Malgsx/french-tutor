@@ -17,6 +17,7 @@ export function createApp(
   options: {
     origin: string;
     live: boolean;
+    portal?: boolean;
     key?: string;
     request?: typeof fetch;
   },
@@ -35,6 +36,27 @@ export function createApp(
     });
     next();
   });
+  // Readiness reveals no learning data and works before portal authentication.
+  app.get("/healthz", (_req, res) => res.json({ ok: true }));
+  if (options.portal) {
+    app.use((req, res, next) => {
+      // Trust this header only behind Amp's proxy with the listener on loopback.
+      // Public-link visitors and read-only workspace viewers are not collaborators.
+      const claims = (req.get("X-Amp-Authenticated") ?? "")
+        .split(",")
+        .map((claim) => claim.trim());
+      if (
+        !claims.includes("collaborator=yes") ||
+        claims.includes("collaborator=no")
+      ) {
+        res.status(403).json({
+          error: "Open this private portal while signed in as the thread owner or an invited collaborator.",
+        });
+        return;
+      }
+      next();
+    });
+  }
   app.use("/api", (req, res, next) => {
     if (req.method !== "GET" && req.headers.origin !== options.origin) {
       res.status(403).json({ error: "Unexpected origin" });

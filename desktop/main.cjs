@@ -12,6 +12,7 @@ const {
   systemPreferences,
 } = require("electron");
 const path = require("node:path");
+const { allowMediaRequest } = require("./media-permission.cjs");
 // The desktop process deliberately does not read .env or the OpenAI key.
 const origin = "http://localhost:3030";
 let window;
@@ -90,12 +91,16 @@ else {
     );
     session.defaultSession.setPermissionRequestHandler(
       async (contents, permission, callback, details) => {
-        const permitted =
-          contents === window.webContents &&
-          permission === "media" &&
-          new URL(details.requestingUrl).origin === origin &&
-          details.mediaTypes?.length === 1 &&
-          details.mediaTypes[0] === "audio";
+        const permitted = allowMediaRequest({
+          permission,
+          requestingOrigin: details.requestingUrl
+            ? new URL(details.requestingUrl).origin
+            : "",
+          requestingUrl: details.requestingUrl,
+          mediaTypes: details.mediaTypes,
+          origin,
+          fromWindow: contents === window.webContents,
+        });
         if (!permitted) {
           callback(false);
           return;

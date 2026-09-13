@@ -3,6 +3,7 @@ import { createAvatar } from "./avatar";
 import { api, commentary, type AvatarState, type Fragment } from "./protocol";
 import { LiveSession, delegatedLesson } from "./live";
 import { stageView, UNAVAILABLE_REASON, type MicAction } from "./stage";
+import { speakDemo } from "./voice";
 import {
   Recorder,
   renderTranscripts,
@@ -38,6 +39,11 @@ let animationTimer: ReturnType<typeof setTimeout>;
 let stageTimer: ReturnType<typeof setInterval> | undefined;
 let avatarState: AvatarState = "idle";
 const captions = new Map<string, HTMLElement>();
+let lastSpoken = "";
+function speakMiette(text: string) {
+  lastSpoken = text;
+  speakDemo(text);
+}
 const recorder = new Recorder(() => !!snapshot?.settings.retainTranscripts);
 let avatar: ReturnType<typeof createAvatar> | undefined;
 try {
@@ -106,6 +112,9 @@ function press(action: MicAction, hintTarget: "stage-hint" | "mic-hint") {
       break;
     case "interrupt":
       live?.interrupt();
+      break;
+    case "replay":
+      speakDemo(lastSpoken || el("bubble").textContent || "");
       break;
   }
   renderStage();
@@ -248,6 +257,7 @@ async function lesson(action: string, text = "") {
     message("assistant", result.text);
     el("bubble").textContent =
       action === "answer" ? "Every attempt counts." : "À toi ! Your turn.";
+    if (demo) speakMiette(result.text);
     setState(result.state);
     if (live) live.send(commentary(result.text));
     await refresh();
@@ -292,6 +302,8 @@ function end() {
     return;
   }
   demo = false;
+  lastSpoken = "";
+  globalThis.speechSynthesis?.cancel();
   void recorder.finish().catch((error) => report(error));
   el("messages").replaceChildren();
   captions.clear();

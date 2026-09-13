@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f4eb" />
+    <title>Miette — French, your next chapter</title>
+  </head>
+  <body>
+    <div class="desktop-bar">
+      <span>MIETTE / DRAG TO MOVE</span
+      ><button id="collapse">Avatar only ↗</button
+      ><button id="hide">Hide</button>
+    </div>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Miette home"
+          >Miette<span>✦</span><small>FRENCH / YOUR NEXT CHAPTER</small></a
+        >
+        <nav aria-label="Settings">
+          <button id="school">
+            ▤
+            <span>School mission<small>PDF, DOCX, or text</small></span></button
+          ><button id="parents">⚙ <span>Parent settings</span></button>
+        </nav>
+      </header>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">A LITTLE PRACTICE. A WHOLE NEW WORLD.</p>
+          <h1>Small talk.<br /><em>Big energy.</em></h1>
+        </div>
+        <p class="intro-note">
+          Your French sidekick.<br />One conversation at a time.<br /><span
+            class="pill"
+            id="mode"
+            >● DEMO · NO MICROPHONE</span
+          >
+        </p>
+      </section>
+      <div class="workspace">
+        <section class="stage" aria-label="Miette animated companion">
+          <div class="stage-top">
+            <span class="sticker">NEXT CHAPTER,<br />TOGETHER.</span
+            ><span class="chapter">VOL. 01<br />FR / EN</span>
+          </div>
+          <div class="speech" id="bubble">
+            Salut ! Ready for<br />your next chapter?
+          </div>
+          <div
+            id="avatar"
+            class="avatar"
+            data-state="idle"
+            role="img"
+            aria-label="Miette, idle"
+          ></div>
+          <span class="star star-one">✦</span
+          ><span class="star star-two">✧</span
+          ><span class="stage-lines" aria-hidden="true">/////</span>
+          <div class="state-label">
+            <span id="state-dot">●</span>
+            <span id="state-label">Idle · ready when you are</span>
+          </div>
+          <button id="expand-avatar">Open chat ↗</button>
+        </section>
+        <aside class="lesson panel">
+          <div class="lesson-heading">
+            <span class="number">01</span>
+            <div>
+              <p class="eyebrow">YOUR CURRENT MISSION</p>
+              <h2 id="lesson-title">Meet & greet</h2>
+            </div>
+          </div>
+          <p class="muted" id="lesson-description">
+            A few words. A good first impression.<br />Pick a word, then give it
+            a shot.
+          </p>
+          <div id="words" class="word-list"></div>
+          <div class="progress-row">
+            <span id="progress-label">0 / 3 words practiced</span><span>✦</span>
+          </div>
+          <progress
+            id="progress"
+            value="0"
+            max="3"
+            aria-label="Words practiced"
+          ></progress>
+          <p class="tiny">
+            Practice, not a grade. Voice recognition never decides your score.
+          </p>
+          <div class="mission-note">
+            <span>▤</span>
+            <div>
+              <strong>Bring your school into the story.</strong>
+              <p>
+                Add a lesson plan in Parent settings. We’ll practice your class
+                vocabulary.
+              </p>
+            </div>
+          </div>
+        </aside>
+        <section class="chat panel">
+          <div class="chat-head">
+            <h2>Between us & the French.</h2>
+            <span id="retention">Not saved</span>
+          </div>
+          <div
+            id="messages"
+            class="messages"
+            role="log"
+            aria-label="Conversation"
+          >
+            <p class="welcome">
+              Miette is an AI tutor. Demo is a scripted vocabulary workout; live
+              mode adds natural voice conversation.
+            </p>
+          </div>
+          <form id="answer-form">
+            <label class="sr-only" for="answer">Your French answer</label
+            ><input
+              id="answer"
+              autocomplete="off"
+              maxlength="500"
+              placeholder="How do you say hello in French?"
+              disabled
+            /><button id="send" type="submit" aria-label="Send answer" disabled>
+              ↑
+            </button>
+          </form>
+          <div class="chat-tools">
+            <button id="repeat" disabled>↻ Say it again</button
+            ><button id="hint" disabled>✧ A little hint</button
+            ><button id="next" disabled>Next word →</button>
+          </div>
+        </section>
+        <section class="controls">
+          <button id="start" class="primary">
+            ▶ Start demo <small>No microphone. No API calls.</small></button
+          ><button id="live" class="secondary">
+            Live voice · parent approval
+          </button>
+          <div class="session-tools">
+            <button id="mute" hidden>Mute mic</button
+            ><button id="interrupt" hidden>Interrupt</button
+            ><button id="end" hidden>End session</button>
+          </div>
+          <p id="status" role="status">Microphone OFF · no audio is recorded</p>
+          <audio
+            id="audio"
+            controls
+            hidden
+            aria-label="Live assistant audio"
+          ></audio>
+        </section>
+      </div>
+      <footer>
+        <span>LESS PRESSURE. MORE <b>POSSIBILITÉS.</b></span
+        ><span>Built for practice, not perfection. ✦</span>
+      </footer>
+    </main>
+    <dialog id="parent-dialog" aria-labelledby="parent-title">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">GROWN-UP CONTROLS</p>
+          <h2 id="parent-title">Make it their chapter.</h2>
+        </div>
+        <button id="close-parent" aria-label="Close parent settings">×</button>
+      </div>
+      <p>Local setup: settings are available without a password.</p>
+      <div id="parent-content" hidden>
+        <form id="settings-form">
+          <div class="settings-grid">
+            <label
+              >Age band<select id="age">
+                <option>8–10</option>
+                <option>11–13</option>
+                <option>14–17</option>
+              </select></label
+            ><label
+              >Language support<select id="support">
+                <option>English help</option>
+                <option>Balanced</option>
+                <option>Mostly French</option>
+              </select></label
+            ><label
+              >Difficulty<select id="difficulty">
+                <option>First words</option>
+                <option>Short phrases</option>
+                <option>Conversation</option>
+              </select></label
+            >
+          </div>
+          <label class="check"
+            ><input type="checkbox" id="retain" /> Save the latest 100
+            transcript fragments / practice messages on this server</label
+          >
+          <p class="tiny">
+            Off by default. Turning this off deletes saved transcripts. Audio is
+            never saved by this app. Live audio and the approved school plan go
+            to OpenAI; provider policies still apply. Only use with parent
+            supervision.
+          </p>
+          <button type="submit">Save settings</button>
+          <p id="settings-status" role="status"></p>
+        </form>
+        <section class="upload-section">
+          <h3>School mission</h3>
+          <p>
+            Upload a PDF, DOCX, or TXT (5 MB max), or paste a lesson plan. Text
+            extraction runs locally on this server. Review and remove names,
+            school details, and private information before saving.
+          </p>
+          <label class="upload-target" for="document"
+            >↥ Choose a document
+            <input type="file" id="document" accept=".pdf,.docx,.txt" /></label
+          ><label
+            >Lesson title<input
+              id="plan-title"
+              maxlength="80"
+              placeholder="e.g. Chapter 3 · At the café" /></label
+          ><label
+            >Review extracted text<textarea
+              id="plan-text"
+              maxlength="20000"
+              rows="7"
+              placeholder="Paste school objectives here. For demo flashcards, add one pair per line:&#10;un livre = a book&#10;une pomme = an apple"
+            ></textarea>
+          </label>
+          <p class="tiny">
+            First 20,000 characters only; no OCR for scans. Demo imports up to
+            12 “French = English” pairs; otherwise the starter cards remain.
+            Live uses the approved text as school reference. Original files are
+            discarded.
+          </p>
+          <button id="save-plan">Approve & save lesson</button
+          ><button id="delete-plan">Remove school lesson</button>
+        </section>
+        <section class="privacy-actions">
+          <button id="view-transcripts">Review saved transcripts</button
+          ><button id="reset" class="danger">Delete all learning data</button>
+          <pre id="saved-transcripts" hidden></pre>
+        </section>
+      </div>
+      <p id="parent-status" role="status"></p>
+    </dialog>
+    <dialog id="live-dialog" aria-labelledby="live-title">
+      <h2 id="live-title">Start a paid live session?</h2>
+      <p>
+        This sends microphone audio and the approved school lesson to OpenAI.
+        The app does not record audio. Live is billed by duration, including
+        initialization; muting still costs money. This prototype stops after 10
+        minutes.
+      </p>
+      <p>
+        Only a parent should approve. Stay nearby. Generated speech can make
+        mistakes and is not pre-screened word by word.
+      </p>
+      <form id="live-form">
+        <label class="check"
+          ><input id="approve-live" type="checkbox" required /> I approve this
+          paid session and the data sharing described above.</label
+        ><button class="primary" type="submit">
+          Approve & connect microphone</button
+        ><button id="cancel-live" type="button">Not now</button>
+      </form>
+      <p id="live-status" role="status"></p>
+    </dialog>
+    <script type="module" src="../src/main.ts"></script>
+  </body>
+</html>

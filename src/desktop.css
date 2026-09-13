@@ -1,0 +1,167 @@
+:root:has(body.avatar-only) {
+  background: transparent;
+}
+body.desktop .desktop-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #302037;
+  color: #faf6ed;
+  padding: 8px 12px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  -webkit-app-region: drag;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+body.desktop .desktop-bar span {
+  flex: 1;
+}
+body.desktop .desktop-bar button {
+  font-size: 10px;
+  padding: 5px 9px;
+  background: #51405a;
+  color: #fff;
+  border: 0;
+  -webkit-app-region: no-drag;
+}
+body.desktop .shell {
+  padding: 16px;
+}
+body.desktop .intro {
+  display: none;
+}
+body.desktop h1 {
+  font-size: 34px;
+}
+body.desktop .intro-note {
+  display: none;
+}
+body.desktop .workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+body.desktop .stage {
+  min-height: 240px;
+}
+body.desktop .stage .avatar {
+  width: 220px;
+  height: 220px;
+  bottom: 0;
+}
+body.desktop .stage .speech {
+  font-size: 12px;
+  top: 63px;
+  max-width: 160px;
+}
+body.desktop .stage .sticker {
+  font-size: 12px;
+}
+body.desktop .lesson {
+  display: none;
+}
+body.desktop .chat {
+  order: 2;
+  padding: 15px;
+}
+body.desktop .messages {
+  height: 100px;
+}
+body.desktop .topbar nav {
+  gap: 5px;
+}
+body.desktop .topbar nav small {
+  display: none;
+}
+body.desktop footer {
+  display: none;
+}
+body.desktop .brand small {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+body.desktop .controls {
+  order: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 8px;
+}
+body.desktop .session-tools,
+body.desktop #status,
+body.desktop audio {
+  grid-column: 1 / -1;
+}
+body.desktop .primary {
+  padding: 12px;
+  font-size: 16px;
+}
+body.desktop.avatar-only {
+  background: transparent;
+  overflow: hidden;
+}
+body.avatar-only .desktop-bar {
+  background: transparent !important;
+  color: #302037 !important;
+}
+body.avatar-only .desktop-bar span,
+body.avatar-only #collapse,
+body.avatar-only #hide,
+body.avatar-only .topbar,
+body.avatar-only .intro,
+body.avatar-only .chat,
+body.avatar-only .controls {
+  display: none !important;
+}
+body.avatar-only .shell {
+  padding: 0;
+}
+body.avatar-only .workspace {
+  display: block;
+  margin-top: 0;
+}
+body.avatar-only .stage {
+  min-height: 245px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+}
+body.avatar-only .stage:before,
+body.avatar-only .stage-top,
+body.avatar-only .speech,
+body.avatar-only .star,
+body.avatar-only .stage-lines {
+  display: none;
+}
+body.avatar-only .stage .avatar {
+  width: 220px;
+  height: 220px;
+  top: 0;
+  bottom: auto;
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+body.avatar-only .state-label {
+  bottom: 20px;
+  font-size: 9px;
+  background: #fffdf5ed;
+  border-radius: 12px;
+  padding: 5px 0;
+  margin: 0 10px;
+}
+body.avatar-only #expand-avatar {
+  display: block;
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  padding: 7px 12px;
+  -webkit-app-region: no-drag;
+}

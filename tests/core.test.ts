@@ -234,8 +234,55 @@ test("password-free broker preserves settings, origin checks, consent and rate l
     );
     await post("transcripts", [{ role: "user", text: "retain this" }]);
     assert.equal(store.state.transcripts.length, 1);
+    const recording = {
+      id: "live-abc",
+      mode: "live",
+      startedAt: 1_700_000_000_000,
+    };
+    assert.equal(
+      (
+        await post("transcripts", {
+          session: recording,
+          entries: [
+            { role: "assistant", text: "Bon", start_ms: 0, end_ms: 100 },
+          ],
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await post("transcripts", {
+          session: { ...recording, extra: true },
+          entries: [],
+        })
+      ).status,
+      400,
+    );
+    await post("lesson", {
+      action: "answer",
+      index: 0,
+      text: "une pomme",
+      session: recording,
+    });
+    const archive = (await (await fetch(base + "transcripts")).json()) as {
+      sessions: { id: string; startedAt?: number; endedAt?: number }[];
+      entries: { session?: string; at?: number }[];
+    };
+    assert.deepEqual(
+      archive.sessions.map((s) => s.id),
+      ["legacy", "live-abc"],
+    );
+    assert.equal(archive.sessions[1].startedAt, recording.startedAt);
+    assert.ok(archive.sessions[1].endedAt! >= recording.startedAt);
+    assert.deepEqual(
+      archive.entries.map((entry) => entry.session),
+      ["legacy", "live-abc", "live-abc", "live-abc"],
+    );
+    assert.ok(archive.entries.every((entry) => typeof entry.at === "number"));
     await post("settings", defaults);
     assert.equal(store.state.transcripts.length, 0);
+    assert.equal(store.state.sessions.length, 0);
     await post("plan", { remove: true });
     assert.equal(store.state.plan, null);
     await post("reset", {});

@@ -67,6 +67,15 @@ export function createApp(
   app.use(express.json({ limit: "64kb" }));
   // Password-free local prototype: retain origin checks and explicit live consent.
   const liveAvailable = options.live && !!options.key;
+  // Recording metadata is client-supplied so the start time predates the first saved turn.
+  const sessionSchema = z
+    .object({
+      id: z.string().min(1).max(80),
+      mode: z.enum(["live", "demo"]),
+      startedAt: z.number().int().nonnegative(),
+      endedAt: z.number().int().nonnegative().optional(),
+    })
+    .strict();
   const vocabulary = () =>
     store.state.plan?.words.length ? store.state.plan.words : words;
   app.get("/api/state", (_req, res) =>
@@ -148,7 +157,7 @@ export function createApp(
       return;
     }
     store.state.settings = parsed.data;
-    if (!parsed.data.retainTranscripts) store.state.transcripts = [];
+    if (!parsed.data.retainTranscripts) store.clearTranscripts();
     store.save();
     res.json({ ok: true });
   });
@@ -157,25 +166,34 @@ export function createApp(
     res.json({ ok: true });
   });
   app.get("/api/transcripts", (_req, res) =>
-    res.json(store.state.transcripts),
+    res.json({
+      sessions: store.state.sessions,
+      entries: store.state.transcripts,
+    }),
   );
+  const entriesSchema = z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        text: z.string().max(2000),
+        start_ms: z.number().optional(),
+        end_ms: z.number().optional(),
+      }),
+    )
+    .max(100);
   app.post("/api/transcripts", (req, res) => {
+    // Plain arrays remain accepted for callers that predate recording sessions.
     const parsed = z
-      .array(
-        z.object({
-          role: z.enum(["user", "assistant"]),
-          text: z.string().max(2000),
-          start_ms: z.number().optional(),
-          end_ms: z.number().optional(),
-        }),
-      )
-      .max(100)
+      .union([
+        entriesSchema.transform((entries) => ({ entries, session: undefined })),
+        z.object({ session: sessionSchema, entries: entriesSchema }).strict(),
+      ])
       .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid transcript" });
       return;
     }
-    store.record(parsed.data);
+    store.record(parsed.data.entries, parsed.data.session);
     res.json({ ok: true });
   });
   app.post("/api/lesson", (req, res) => {
@@ -188,13 +206,14 @@ export function createApp(
           .min(0)
           .max(vocabulary().length - 1),
         text: z.string().max(4000).default(""),
+        session: sessionSchema.optional(),
       })
       .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid lesson request" });
       return;
     }
-    const { action, index, text } = parsed.data;
+    const { action, index, text, session } = parsed.data;
     const word = vocabulary()[index];
     if (action === "answer") {
       const result = evaluate(text, index, vocabulary());
@@ -202,10 +221,13 @@ export function createApp(
       if (result.correct && !store.state.progress.practiced.includes(word.fr))
         store.state.progress.practiced.push(word.fr);
       store.save();
-      store.record([
-        { role: "user", text },
-        { role: "assistant", text: result.text },
-      ]);
+      store.record(
+        [
+          { role: "user", text },
+          { role: "assistant", text: result.text },
+        ],
+        session,
+      );
       res.json({ ...result, progress: store.state.progress });
       return;
     }

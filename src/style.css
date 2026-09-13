@@ -655,6 +655,54 @@ pre {
   max-height: 200px;
   overflow: auto;
 }
+.transcripts {
+  margin-top: 12px;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: white;
+}
+.transcript-day {
+  margin-top: 14px;
+}
+.transcript-heading {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #70458b;
+  margin-bottom: 6px;
+}
+.transcript-recording {
+  border-top: 1px solid var(--line);
+  padding: 6px 0;
+}
+.transcript-summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--ink);
+}
+.transcript-doc {
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f4eb;
+}
+.transcript-doc .turn {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  margin: 0 0 4px;
+}
+.transcript-doc .speaker {
+  color: #70458b;
+}
+.transcript-doc .user .speaker {
+  color: #993d45;
+}
 .sr-only {
   position: absolute;
   left: -10000px;

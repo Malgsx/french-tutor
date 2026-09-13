@@ -134,13 +134,25 @@ runs the browser tutor, not the macOS menu-bar app. Do not use `desktop:live` th
    and run `.agents/setup` once. Amp supplies `PORT`, `PUBLIC_URL` and `AMP_ORB=1`;
    do not copy a localhost `APP_ORIGIN` or hardcode a generated portal hostname.
 5. Open the exact generated portal URL **in a new browser tab**, signed in to Amp
-   as the thread owner or an invited collaborator. Keep the portal private. The
-   app deliberately blocks framing; microphone access should happen in the
-   top-level HTTPS page, not the embedded Portal pane.
+   as the thread owner or an invited collaborator. Keep the portal private.
+   Microphone access should happen in the top-level HTTPS page, not the embedded
+   Portal pane. The app sends `frame-ancestors 'none'`, but external testing found
+   that Amp rewrites it to allow same-origin and `https://ampcode.com` frames.
+   Strict no-framing protection is therefore not preserved by the portal layer.
 6. Try **Start demo** first, then **Live voice**, approve cost/data sharing and
    allow the browser microphone. End promptly with **End session**.
 
-After changing secrets or service configuration, run inside the orb:
+After saving or changing a secret, run inside the orb:
+
+```sh
+amp orb restart-processes
+```
+
+This reloads Amp's injected environment and restarts the executor and managed
+services after the current command finishes. Restarting only the tutor service
+does not refresh the orb's secret injection. See [Handling Secrets](https://ampcode.com/docs/orbs/handling-secrets).
+
+For changes only to `.amp/services.yaml` or source code, use:
 
 ```sh
 amp orb service restart tutor

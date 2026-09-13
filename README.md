@@ -291,8 +291,13 @@ approving a session. Do not expose this local prototype publicly.
   OpenAI. `store:false` disables optional Live recording/fork storage; it does
   **not** promise Zero Data Retention or override provider/account policies.
 - Captions/history are memory-only by default and cleared on session end. Opt-in
-  transcript retention saves only the latest 100 fragments/practice messages.
-  Turning retention off deletes saved transcripts immediately.
+  transcript retention saves only the latest 100 fragments/practice messages,
+  each tagged with its recording session (id, mode, started/ended time).
+  **Review saved transcripts** groups recordings by local day, newest first,
+  and opens each one as a chat-style document (`Me:` / `Miette:`). Each day
+  offers per-date export buttons: Markdown (agent-friendly), Word (`.doc`)
+  and JSON. Records saved before session tracking appear under
+  “Earlier recordings”. Turning retention off deletes saved transcripts immediately.
 - **Remove school lesson** clears the approved plan and vocabulary progress.
   **Delete all learning data** resets settings, plan, progress and transcripts
   but does not erase independent OS backups or

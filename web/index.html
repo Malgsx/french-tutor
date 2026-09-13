@@ -266,7 +266,12 @@
         <section class="privacy-actions">
           <button id="view-transcripts">Review saved transcripts</button
           ><button id="reset" class="danger">Delete all learning data</button>
-          <pre id="saved-transcripts" hidden></pre>
+          <div
+            id="saved-transcripts"
+            class="transcripts"
+            aria-live="polite"
+            hidden
+          ></div>
         </section>
       </div>
       <p id="parent-status" role="status"></p>

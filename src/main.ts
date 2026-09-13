@@ -3,6 +3,11 @@ import { createAvatar } from "./avatar";
 import { api, commentary, type AvatarState, type Fragment } from "./protocol";
 import { LiveSession, delegatedLesson } from "./live";
 import { stageView, UNAVAILABLE_REASON, type MicAction } from "./stage";
+import {
+  Recorder,
+  renderTranscripts,
+  type TranscriptArchive,
+} from "./transcripts";
 import type { Settings, Progress, Word, Plan } from "../server/lesson";
 
 declare global {
@@ -33,6 +38,7 @@ let animationTimer: ReturnType<typeof setTimeout>;
 let stageTimer: ReturnType<typeof setInterval> | undefined;
 let avatarState: AvatarState = "idle";
 const captions = new Map<string, HTMLElement>();
+const recorder = new Recorder(() => !!snapshot?.settings.retainTranscripts);
 let avatar: ReturnType<typeof createAvatar> | undefined;
 try {
   avatar = createAvatar(el("avatar"));
@@ -147,15 +153,16 @@ function fragment(fragment: Fragment) {
   node.append(document.createTextNode(fragment.text));
   if (node.textContent!.length > 10000)
     node.textContent = node.textContent!.slice(-8000);
-  if (snapshot.settings.retainTranscripts)
-    void api("transcripts", [
+  void recorder
+    .save([
       {
         role: fragment.role,
         text: fragment.text.slice(0, 2000),
         start_ms: fragment.start_ms,
         end_ms: fragment.end_ms,
       },
-    ]).catch((error) => report(error));
+    ])
+    .catch((error) => report(error));
 }
 function controls() {
   const active = demo || !!live;
@@ -234,6 +241,7 @@ async function lesson(action: string, text = "") {
       action,
       index,
       text,
+      session: recorder.session,
     });
     if (current !== revision) return;
     message("assistant", result.text);
@@ -253,6 +261,7 @@ async function lesson(action: string, text = "") {
 }
 el("start").onclick = () => {
   demo = true;
+  recorder.start("demo");
   el("messages").replaceChildren();
   notice("Demo · simulated voice states, text practice only · microphone OFF");
   controls();
@@ -282,6 +291,7 @@ function end() {
     return;
   }
   demo = false;
+  void recorder.finish().catch((error) => report(error));
   el("messages").replaceChildren();
   captions.clear();
   setState("idle");
@@ -416,11 +426,9 @@ el("delete-plan").onclick = async () => {
 };
 el("view-transcripts").onclick = async () => {
   try {
-    const entries = await api<Fragment[]>("transcripts");
+    const archive = await api<TranscriptArchive>("transcripts");
     el("saved-transcripts").hidden = false;
-    el("saved-transcripts").textContent = entries.length
-      ? entries.map((f) => `${f.role}: ${f.text}`).join("\n")
-      : "No saved transcripts.";
+    renderTranscripts(archive, el("saved-transcripts"));
   } catch (error) {
     report(error, "parent-status");
   }
@@ -464,6 +472,7 @@ el("live-form").onsubmit = async (event) => {
     el("messages").replaceChildren();
     captions.clear();
     muted = false;
+    recorder.start("live");
     live = new LiveSession(el<HTMLAudioElement>("audio"), {
       state: setState,
       notice,
@@ -471,6 +480,7 @@ el("live-form").onsubmit = async (event) => {
       lesson: (context) => delegatedLesson(index, context),
       ended: () => {
         live = undefined;
+        void recorder.finish().catch((error) => report(error));
         el("messages").replaceChildren();
         captions.clear();
         controls();

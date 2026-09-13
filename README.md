@@ -109,7 +109,7 @@ Demo cards remain simple at every level; difficulty/language preferences steer
 the live model rather than inventing an adaptive demo curriculum.
 
 `npm run dev` also runs the broker; it does **not** run Vite HMR. Rebuild after
-frontend edits. `npm start` must run from `tutor/` so it finds `dist/` and `.env`.
+frontend edits. `npm start` must run from this folder so it finds `dist/` and `.env`.
 
 ## Private Amp orb
 
@@ -176,8 +176,10 @@ This private development portal is not an always-on production deployment.
 
 ### Environment
 
-The server reads environment variables, then an optional ignored `tutor/.env`.
-Existing environment values take precedence. Never commit `.env` or put a key in
+The server reads environment variables, then an optional ignored `.env` in this
+folder (next to `package.json`). Existing environment values take precedence.
+Run `npm run doctor` to check where the key is coming from and whether OpenAI
+accepts it, without printing the key. Never commit `.env` or put a key in
 `VITE_*`, renderer code, Electron preload, screenshots, logs, or a chat message.
 
 | Variable         | Default / meaning                                                                                   |

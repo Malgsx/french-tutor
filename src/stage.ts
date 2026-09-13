@@ -28,6 +28,7 @@ export type StageInput = {
   liveAvailable: boolean;
   avatarState: AvatarState;
   remainingMs: number | null;
+  micMuted?: boolean;
 };
 export type StageView = {
   phase: StagePhase;
@@ -56,8 +57,17 @@ export function formatRemaining(ms: number) {
   return `${minutes}:${seconds} left`;
 }
 
+function resumeAria(kind: "mic" | "stage", micMuted: boolean) {
+  const mic = micMuted
+    ? "microphone stays muted"
+    : "microphone mute setting is unchanged";
+  return kind === "mic"
+    ? `Resume live voice · ${mic} · Miette’s voice plays`
+    : `Resume live session · ${mic} · Miette’s voice plays`;
+}
+
 // The microphone button is "your mic": press to start talking, to cut in while
-// Miette speaks, to mute yourself while listening, or to unmute when paused.
+// Miette speaks, or to mute yourself while listening. Resume keeps micMuted.
 export function micView(input: StageInput): MicView {
   if (input.live) {
     if (input.paused)
@@ -65,7 +75,7 @@ export function micView(input: StageInput): MicView {
         state: "paused",
         action: "resume",
         caption: "Paused · press to resume",
-        ariaLabel: "Resume: unmute your microphone and Miette’s voice",
+        ariaLabel: resumeAria("mic", !!input.micMuted),
       };
     if (!input.ready)
       return {
@@ -125,8 +135,7 @@ export function stageView(input: StageInput): StageView {
         action: "resume",
         icon: "▶",
         label: `Paused · mic muted${remaining}`,
-        ariaLabel:
-          "Resume live session: unmute the microphone and Miette’s voice",
+        ariaLabel: resumeAria("stage", !!input.micMuted),
         mic,
       };
     if (!input.ready)

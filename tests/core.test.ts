@@ -11,7 +11,7 @@ import {
   extractWords,
   lessonContext,
 } from "../server/lesson";
-import { commentary, transcript } from "../src/protocol";
+import { commentary, replyIdentities, transcript } from "../src/protocol";
 import { extractDocument } from "../server/upload";
 
 test("asymmetric vocabulary checks, gentle correction and school pair parsing", () => {
@@ -56,6 +56,14 @@ test("Live transcript contract preserves spacing, overlaps and delegation IDs", 
   assert.equal(first!.text + second!.text, "bonjour !");
   assert.equal(other!.start_ms, 200);
   assert.equal(other!.role, "assistant");
+  assert.deepEqual(
+    replyIdentities({
+      type: "session.output_transcript.delta",
+      item_id: "item_new",
+      response_id: "resp_new",
+    }),
+    ["item_new", "resp_new"],
+  );
   assert.equal(transcript({ type: "session.delegation.created" }), null);
   assert.equal(
     commentary("Ready", "item_opaque_123").delegation_id,

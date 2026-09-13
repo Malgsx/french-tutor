@@ -17,9 +17,17 @@ export type LiveEvent = {
   delta?: string;
   start_ms?: number;
   end_ms?: number;
+  item_id?: string;
+  output_item_id?: string;
+  response_id?: string;
+  reply_id?: string;
   delegation?: { id: string; target: string };
   reason?: string;
 };
+export function replyIdentities(event: LiveEvent): string[] {
+  return [event.item_id, event.output_item_id, event.response_id, event.reply_id]
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+}
 export function transcript(event: LiveEvent): Fragment | null {
   if (
     ![

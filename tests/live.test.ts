@@ -233,7 +233,11 @@ test("pause keeps the session open, mutes mic and playback, and play resumes ins
 test("cut-in silences Miette, keeps the session and mic, and restores sound for her reply", async () => {
   const h = harness();
   const { session, sent, track, audio, emit } = h;
-  const say = (role: "user" | "assistant", text: string) =>
+  const say = (
+    role: "user" | "assistant",
+    text: string,
+    identity: { item_id?: string; response_id?: string } = {},
+  ) =>
     emit({
       type:
         role === "user"
@@ -242,10 +246,12 @@ test("cut-in silences Miette, keeps the session and mic, and restores sound for 
       delta: text,
       start_ms: 0,
       end_ms: 100,
+      ...identity,
     });
   try {
     await session.start();
     await emit({ type: "session.started" });
+    await say("assistant", "Bonjour !", { item_id: "item_old" });
     session.interrupt();
     assert.equal(session.isSilenced, true);
     assert.equal(audio.muted, true, "playback stops immediately");
@@ -256,28 +262,76 @@ test("cut-in silences Miette, keeps the session and mic, and restores sound for 
     assert.match(stop.content!, /Stop speaking now/);
     assert.match(stop.content!, /French tutor/);
     assert.equal(h.states.at(-1), "listening");
-    await say("assistant", "…tail of the interrupted answer");
+    await say("assistant", "…tail of the interrupted answer", {
+      item_id: "item_old",
+    });
     assert.equal(audio.muted, true, "old answer stays quiet");
     await say("user", "Comment dit-on cat ?");
     assert.equal(audio.muted, true, "still quiet until she replies");
-    await say("assistant", "Un chat !");
+    await say("assistant", "Un chat !", { item_id: "item_new" });
     assert.equal(session.isSilenced, false);
     assert.equal(audio.muted, false, "reply is audible");
     session.interrupt();
     session.resumeAudio();
     assert.equal(audio.muted, false, "manual Resume audio works too");
     await say("user", "encore");
-    await say("assistant", "Encore une fois");
+    await say("assistant", "Encore une fois", { item_id: "item_encore" });
     assert.equal(audio.muted, false);
     session.interrupt();
     session.pause();
     session.resume();
     assert.equal(audio.muted, true, "resume from pause keeps the cut-in");
     await say("user", "?");
-    await say("assistant", "Oui");
+    await say("assistant", "Oui", { item_id: "item_oui" });
     assert.equal(audio.muted, false);
     await emit({ type: "session.closed", reason: "close_requested" });
     assert.equal(h.counters.ended, true);
+  } finally {
+    h.restore();
+  }
+});
+
+test("cut-in ignores a delayed old assistant delta after the learner speaks", async () => {
+  const h = harness();
+  const { session, audio, emit } = h;
+  const say = (
+    role: "user" | "assistant",
+    text: string,
+    identity: { item_id?: string; response_id?: string } = {},
+  ) =>
+    emit({
+      type:
+        role === "user"
+          ? "session.input_transcript.delta"
+          : "session.output_transcript.delta",
+      delta: text,
+      start_ms: role === "user" ? 400 : text.includes("late") ? 200 : 800,
+      end_ms: role === "user" ? 500 : text.includes("late") ? 300 : 900,
+      ...identity,
+    });
+  try {
+    await session.start();
+    await emit({ type: "session.started" });
+    await say("assistant", "Bonjour les amis", {
+      item_id: "item_old",
+      response_id: "resp_old",
+    });
+    session.interrupt();
+    await say("user", "Comment dit-on cat ?");
+    assert.equal(audio.muted, true);
+    await say("assistant", "…late tail of the interrupted answer", {
+      item_id: "item_old",
+      response_id: "resp_old",
+    });
+    assert.equal(session.isSilenced, true);
+    assert.equal(audio.muted, true, "delayed old reply stays silent");
+    await say("assistant", "Un chat !", {
+      item_id: "item_new",
+      response_id: "resp_new",
+    });
+    assert.equal(session.isSilenced, false);
+    assert.equal(audio.muted, false, "new reply restores playback");
+    await emit({ type: "session.closed", reason: "close_requested" });
   } finally {
     h.restore();
   }

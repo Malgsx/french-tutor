@@ -55,6 +55,7 @@ function currentStage() {
     liveAvailable: !!snapshot?.liveAvailable,
     avatarState,
     remainingMs: live?.remainingMs() ?? null,
+    micMuted: live?.isMicMuted ?? muted,
   });
 }
 function renderStage() {

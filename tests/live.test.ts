@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIVE_ICE_SERVERS, LIVE_LIMIT_MS, LiveSession } from "../src/live";
+import { LIVE_ICE_SERVERS, LIVE_LIMIT_MS, LiveSession, micProblem } from "../src/live";
 import type { AvatarState, LiveEvent } from "../src/protocol";
 
 function harness(options: { resumeError?: boolean; closeOnBind?: boolean } = {}) {
@@ -400,4 +400,58 @@ test("a data-channel close before negotiation does not end the session", async (
   } finally {
     h.restore();
   }
+});
+
+test("a rejected command or moderation error keeps the dialogue open; a startup error ends it", async () => {
+  const h = harness();
+  try {
+    await h.session.start();
+    await h.emit({ type: "session.started" });
+    await h.emit({
+      type: "error",
+      error: {
+        type: "invalid_request_error",
+        code: "immutable_field_update",
+        message: "The delegation type cannot change after session startup.",
+        client_event_id: "evt_1",
+      },
+    } as LiveEvent);
+    assert.equal(h.counters.ended, false, "session survives an error event");
+    assert.equal(h.session.isReady, true);
+    assert.equal(h.track.enabled, true, "mic keeps sending after the notice");
+    assert.match(h.notices.at(-1) ?? "", /delegation type cannot change/);
+    assert.match(h.notices.at(-1) ?? "", /session continues/);
+    await h.emit({
+      type: "session.output_transcript.delta",
+      delta: "Bonjour !",
+      start_ms: 0,
+      end_ms: 400,
+    });
+    assert.equal(h.counters.ended, false);
+    await h.emit({ type: "session.closed", reason: "content" });
+    assert.equal(h.counters.ended, true, "only session.closed finalizes");
+  } finally {
+    h.restore();
+  }
+  const early = harness();
+  try {
+    await early.session.start();
+    await early.emit({
+      type: "error",
+      error: { message: "Session could not be created." },
+    } as LiveEvent);
+    assert.equal(early.counters.ended, true);
+    assert.match(early.notices.at(-1) ?? "", /Microphone OFF · Session could not be created/);
+  } finally {
+    early.restore();
+  }
+});
+
+test("getUserMedia failures explain what to do instead of a bare DOMException name", () => {
+  const dom = (name: string) => Object.assign(new Error("denied"), { name });
+  assert.match(micProblem(dom("NotAllowedError")), /Privacy & Security › Microphone/);
+  assert.match(micProblem(dom("NotFoundError")), /No microphone found/);
+  assert.match(micProblem(dom("NotReadableError")), /busy/);
+  assert.match(micProblem(new Error("weird")), /Microphone unavailable: weird/);
+  assert.equal(micProblem(undefined), "Microphone unavailable.");
 });

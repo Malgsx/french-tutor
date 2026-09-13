@@ -11,6 +11,13 @@ import {
   words,
 } from "./lesson";
 import { extractDocument } from "./upload";
+import {
+  checkKey,
+  configuredAccess,
+  describeRefusal,
+  refusalDetail,
+  type LiveAccess,
+} from "./live-access";
 
 export function createApp(
   store: Store,
@@ -20,6 +27,10 @@ export function createApp(
     portal?: boolean;
     key?: string;
     request?: typeof fetch;
+    // Verify the key with OpenAI at startup so a bad key is reported before a
+    // learner asks for the microphone. Off by default for offline tests.
+    preflight?: boolean;
+    onAccess?: (access: LiveAccess) => void;
   },
 ) {
   const app = express();
@@ -66,7 +77,15 @@ export function createApp(
   });
   app.use(express.json({ limit: "64kb" }));
   // Password-free local prototype: retain origin checks and explicit live consent.
-  const liveAvailable = options.live && !!options.key;
+  let access = configuredAccess(options.live, options.key);
+  const setAccess = (next: LiveAccess) => {
+    access = next;
+    options.onAccess?.(next);
+  };
+  const keyChecked =
+    access.available && options.preflight && options.key
+      ? checkKey(options.key, options.request).then(setAccess)
+      : Promise.resolve();
   // Recording metadata is client-supplied so the start time predates the first saved turn.
   const sessionSchema = z
     .object({
@@ -78,15 +97,17 @@ export function createApp(
     .strict();
   const vocabulary = () =>
     store.state.plan?.words.length ? store.state.plan.words : words;
-  app.get("/api/state", (_req, res) =>
+  app.get("/api/state", async (_req, res) => {
+    await keyChecked;
     res.json({
       settings: store.state.settings,
       progress: store.state.progress,
       words: vocabulary(),
       planTitle: store.state.plan?.title ?? null,
-      liveAvailable,
-    }),
-  );
+      liveAvailable: access.available,
+      liveReason: access.reason,
+    });
+  });
   app.get("/api/plan", (_req, res) => res.json(store.state.plan));
   let extracting = false;
   app.post(
@@ -242,8 +263,11 @@ export function createApp(
     });
   });
   app.post("/api/session", async (req, res) => {
-    if (!liveAvailable) {
-      res.status(403).json({ error: "Live is disabled. Use demo mode." });
+    await keyChecked;
+    if (!access.available) {
+      res.status(403).json({
+        error: `${access.reason ?? "Live is disabled."} Start demo works without a microphone.`,
+      });
       return;
     }
     const parsed = z
@@ -300,11 +324,14 @@ export function createApp(
         },
       );
       if (!upstream.ok) {
-        res
-          .status(502)
-          .json({
-            error: `Live service refused session creation (${upstream.status}). No automatic retry.`,
-          });
+        const reason = describeRefusal(
+          upstream.status,
+          await refusalDetail(upstream),
+        );
+        // A rejected key cannot recover without a restart; stop advertising Live.
+        if (upstream.status === 401 || upstream.status === 403)
+          setAccess({ available: false, reason });
+        res.status(502).json({ error: reason });
         return;
       }
       const data = z

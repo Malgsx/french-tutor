@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import electron from "electron";
+import { reuseNotice } from "./reuse-notice.mjs";
 
 const cwd = fileURLToPath(new URL("../", import.meta.url));
 const origin = "http://localhost:3030";
@@ -32,7 +33,7 @@ async function serverReady() {
     throw new Error(
       "Port 3030 is occupied by a different service. Miette will not replace it.",
     );
-  return true;
+  return state;
 }
 
 async function stop(code = 0) {
@@ -57,10 +58,9 @@ process.on("SIGINT", () => void stop());
 process.on("SIGTERM", () => void stop());
 
 try {
-  if (await serverReady()) {
-    console.log(
-      "Using the running Miette server; its live configuration is unchanged.",
-    );
+  const running = await serverReady();
+  if (running) {
+    for (const line of reuseNotice(running)) console.log(line);
   } else if (!stopping) {
     console.log("Starting the local Miette server…");
     server = spawn(process.execPath, ["--import", "tsx", "server/index.ts"], {
@@ -79,11 +79,14 @@ try {
       }
     });
     const deadline = Date.now() + 20000;
-    while (!stopping && !(await serverReady())) {
+    let started;
+    while (!stopping && !(started = await serverReady())) {
       if (Date.now() > deadline)
         throw new Error("Miette server startup timed out.");
       await delay(200);
     }
+    if (started && !started.liveAvailable && started.liveReason)
+      console.log(started.liveReason);
   }
   if (!stopping) {
     console.log(

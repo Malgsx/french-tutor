@@ -23,6 +23,7 @@ export type LiveEvent = {
   reply_id?: string;
   delegation?: { id: string; target: string };
   reason?: string;
+  error?: { message?: string; code?: string | null; client_event_id?: string };
 };
 export function replyIdentities(event: LiveEvent): string[] {
   return [event.item_id, event.output_item_id, event.response_id, event.reply_id]

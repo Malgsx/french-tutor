@@ -28,6 +28,7 @@ type Snapshot = {
   words: Word[];
   planTitle: string | null;
   liveAvailable: boolean;
+  liveReason?: string | null;
 };
 let snapshot: Snapshot;
 let index = 0;
@@ -62,7 +63,11 @@ function currentStage() {
     avatarState,
     remainingMs: live?.remainingMs() ?? null,
     micMuted: live?.isMicMuted ?? muted,
+    avatarOnly: avatarOnly(),
   });
+}
+function avatarOnly() {
+  return document.body.classList.contains("avatar-only");
 }
 function renderStage() {
   const view = currentStage();
@@ -99,10 +104,11 @@ function press(action: MicAction, hintTarget: "stage-hint" | "mic-hint") {
   clearHints();
   switch (action) {
     case "start":
-      liveDialog.showModal();
+      if (avatarOnly()) void startLive();
+      else liveDialog.showModal();
       break;
     case "unavailable":
-      hint(hintTarget, UNAVAILABLE_REASON);
+      hint(hintTarget, snapshot?.liveReason || UNAVAILABLE_REASON);
       break;
     case "pause":
       live?.pause();
@@ -473,12 +479,10 @@ el("cancel-live").onclick = () => liveDialog.close();
 liveDialog.onclose = () => {
   el<HTMLInputElement>("approve-live").checked = false;
 };
-el("live-form").onsubmit = async (event) => {
-  event.preventDefault();
-  const button = el("live-form").querySelector<HTMLButtonElement>(
-    "button[type=submit]",
-  )!;
-  button.disabled = true;
+let starting = false;
+async function startLive(statusTarget: "live-status" | "stage-hint" = "stage-hint") {
+  if (live || starting) return;
+  starting = true;
   try {
     clearHints();
     el("messages").replaceChildren();
@@ -496,17 +500,38 @@ el("live-form").onsubmit = async (event) => {
         el("messages").replaceChildren();
         captions.clear();
         controls();
+        // A rejected key flips the server to unavailable; pick up its reason.
+        void refresh().catch(() => {});
       },
     });
     controls();
     const started = live.start();
-    // Close after this click finishes so Approve cannot fall through onto
-    // the avatar or mic and pause the session before the track arrives.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    liveDialog.close();
+    if (liveDialog.open) {
+      // Close after this click finishes so Approve cannot fall through onto
+      // the avatar or mic and pause the session before the track arrives.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      liveDialog.close();
+    }
     await started;
   } catch (error) {
-    report(error, "live-status");
+    if (statusTarget === "live-status") report(error, statusTarget);
+    else
+      hint(
+        "stage-hint",
+        error instanceof Error ? error.message : "Something went wrong. Please try again.",
+      );
+  } finally {
+    starting = false;
+  }
+}
+el("live-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const button = el("live-form").querySelector<HTMLButtonElement>(
+    "button[type=submit]",
+  )!;
+  button.disabled = true;
+  try {
+    await startLive("live-status");
   } finally {
     button.disabled = false;
   }

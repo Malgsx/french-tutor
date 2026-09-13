@@ -170,3 +170,15 @@ test("remaining time formatting rounds up and never goes negative", () => {
   assert.equal(formatRemaining(500), "0:01 left");
   assert.equal(formatRemaining(-20), "0:00 left");
 });
+
+test("avatar-only window starts talking on one click without the approval wording", () => {
+  const compact = stageView({ ...idle, avatarOnly: true });
+  assert.equal(compact.action, "start");
+  assert.equal(compact.ariaLabel, "Start talking with Miette");
+  assert.equal(compact.mic.action, "start");
+  assert.equal(compact.mic.ariaLabel, "Start talking with Miette");
+  const full = stageView({ ...idle, avatarOnly: false });
+  assert.match(full.ariaLabel, /parent approval/);
+  const off = stageView({ ...idle, avatarOnly: true, liveAvailable: false });
+  assert.equal(off.action, "unavailable");
+});

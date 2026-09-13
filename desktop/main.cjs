@@ -105,9 +105,26 @@ else {
           callback(false);
           return;
         }
-        if (process.platform === "darwin")
-          callback(await systemPreferences.askForMediaAccess("microphone"));
-        else callback(true);
+        if (process.platform !== "darwin") {
+          callback(true);
+          return;
+        }
+        // Once macOS has recorded a denial, askForMediaAccess returns false
+        // silently every time; only System Settings can undo it.
+        const granted =
+          systemPreferences.getMediaAccessStatus("microphone") === "denied"
+            ? false
+            : await systemPreferences.askForMediaAccess("microphone");
+        if (!granted)
+          dialog.showMessageBox(window, {
+            type: "warning",
+            title: "Microphone blocked by macOS",
+            message:
+              "macOS is blocking the microphone for Miette (it may be listed as “Electron”).",
+            detail:
+              "Open System Settings › Privacy & Security › Microphone, switch on Miette or Electron, then choose the microphone in Miette again.",
+          });
+        callback(granted);
       },
     );
     ipcMain.on("miette:compact", (event, value) => {

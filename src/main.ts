@@ -28,6 +28,7 @@ type Snapshot = {
   words: Word[];
   planTitle: string | null;
   liveAvailable: boolean;
+  liveReason?: string | null;
 };
 let snapshot: Snapshot;
 let index = 0;
@@ -102,7 +103,7 @@ function press(action: MicAction, hintTarget: "stage-hint" | "mic-hint") {
       liveDialog.showModal();
       break;
     case "unavailable":
-      hint(hintTarget, UNAVAILABLE_REASON);
+      hint(hintTarget, snapshot?.liveReason || UNAVAILABLE_REASON);
       break;
     case "pause":
       live?.pause();
@@ -496,6 +497,8 @@ el("live-form").onsubmit = async (event) => {
         el("messages").replaceChildren();
         captions.clear();
         controls();
+        // A rejected key flips the server to unavailable; pick up its reason.
+        void refresh().catch(() => {});
       },
     });
     controls();

@@ -163,7 +163,17 @@ export class LiveSession {
       return;
     }
     if (event.type === "error") {
-      this.fail("Live reported an error · final usage unconfirmed");
+      // Live emits error events for rejected commands and moderation cut-offs
+      // while the session stays open; only session.closed or a lost transport
+      // ends it. Before startup completes an error is a failed connection.
+      const detail = event.error?.message ?? "Live reported an error";
+      if (!this.ready) {
+        this.fail(`${detail} · final usage unconfirmed`);
+        return;
+      }
+      this.hooks.notice(
+        `Microphone ON · Live notice: ${detail} · session continues`,
+      );
       return;
     }
     if (this.closing) return;

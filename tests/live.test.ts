@@ -124,10 +124,13 @@ test("WebRTC readiness, exact delegation IDs, mute, late work and graceful close
   const { session, sent, track, audio, emit } = h;
   try {
     await session.start();
+    assert.equal(track.enabled, true, "mic track stays enabled after permission");
     assert.deepEqual(h.order, ["track", "channel", "offer"]);
     session.send({ type: "must-not-send" });
     assert.equal(sent.length, 0);
     await emit({ type: "session.started" });
+    assert.equal(track.enabled, true);
+    assert.match(h.notices.at(-1) ?? "", /Microphone ON/);
     assert.equal(sent[0].type, "session.instructions.append");
     assert.equal(
       sent.some((e) => e.type === "session.start"),
@@ -339,17 +342,24 @@ test("cut-in ignores a delayed old assistant delta after the learner speaks", as
 
 test("pausing before the microphone is granted applies once the track arrives", async () => {
   const h = harness();
-  const { session, track, audio } = h;
+  const { session, track, audio, emit } = h;
   try {
     session.pause();
     assert.equal(session.isPaused, true);
     await session.start();
     assert.equal(track.enabled, false);
     assert.equal(audio.muted, true);
+    await emit({ type: "session.started" });
+    assert.equal(track.enabled, false, "ready does not unmute a paused start");
+    assert.doesNotMatch(
+      h.notices.at(-1) ?? "",
+      /Microphone ON/,
+      "status must not claim the mic is on while paused",
+    );
     session.resume();
     assert.equal(track.enabled, true);
     assert.equal(audio.muted, false);
-    assert.equal(h.states.at(-1), "thinking", "still connecting after resume");
+    assert.equal(h.states.at(-1), "listening");
   } finally {
     h.restore();
   }

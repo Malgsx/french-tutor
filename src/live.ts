@@ -202,8 +202,13 @@ export class LiveSession {
     if (event.type === "session.started") {
       clearTimeout(this.readyTimer);
       this.ready = true;
+      this.apply();
       this.hooks.notice(
-        "Microphone ON · speak naturally; you can interrupt · 10-minute limit",
+        this.paused || this.micMuted
+          ? this.paused
+            ? "Paused · microphone MUTED and playback silenced · session open, live time still billed"
+            : "Microphone MUTED · device track disabled · live time still billed"
+          : "Microphone ON · speak naturally; you can interrupt · 10-minute limit",
       );
       this.send({
         type: "session.instructions.append",

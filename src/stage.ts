@@ -80,9 +80,10 @@ export function micView(input: StageInput): MicView {
     if (!input.ready)
       return {
         state: "connecting",
-        action: "pause",
+        action: "none",
         caption: "Connecting…",
-        ariaLabel: "Connecting live voice · press to pause",
+        ariaLabel:
+          "Connecting live voice · waiting for microphone permission",
       };
     if (input.avatarState === "speaking")
       return {
@@ -141,10 +142,11 @@ export function stageView(input: StageInput): StageView {
     if (!input.ready)
       return {
         phase: "connecting",
-        action: "pause",
-        icon: "⏸",
+        action: "none",
+        icon: "●",
         label: "Connecting · microphone permission required",
-        ariaLabel: "Pause live session: mute the microphone and Miette’s voice",
+        ariaLabel:
+          "Connecting live session · waiting for microphone permission",
         mic,
       };
     return {

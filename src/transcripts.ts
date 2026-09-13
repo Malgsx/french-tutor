@@ -216,6 +216,112 @@ export function transcriptText(recording: Pick<Recording, "turns">) {
     .map((turn) => `${turn.speaker}: ${turn.text}`)
     .join("\n");
 }
+export type DayExportFormat = "md" | "doc" | "json";
+/** Download filename for one day, e.g. "miette-transcripts-2026-09-13.md". */
+export function dayExportFilename(day: Pick<DayGroup, "key" | "heading">, format: DayExportFormat) {
+  const slug =
+    day.key === UNDATED
+      ? "earlier-recordings"
+      : day.key;
+  return `miette-transcripts-${slug}.${format}`;
+}
+/** Agent-friendly Markdown for one day: heading, one section per recording, one turn per line. */
+export function dayToMarkdown(day: DayGroup) {
+  const lines = [
+    `# ${day.heading}`,
+    ``,
+    `${day.recordings.length} ${day.recordings.length === 1 ? "recording" : "recordings"}`,
+    ``,
+  ];
+  for (const recording of day.recordings) {
+    lines.push(`## ${recording.label}`);
+    if (recording.startedAt !== undefined)
+      lines.push(`Recorded: ${new Date(recording.startedAt).toISOString()} · mode: ${recording.mode} · id: ${recording.id}`);
+    lines.push(``);
+    for (const turn of recording.turns)
+      lines.push(`**${turn.speaker}:** ${turn.text}`);
+    lines.push(``);
+  }
+  return lines.join("\n");
+}
+/** Machine-readable JSON for one day, including recording metadata and turns. */
+export function dayToJson(day: DayGroup) {
+  return JSON.stringify(
+    {
+      heading: day.heading,
+      key: day.key,
+      exportedAt: new Date().toISOString(),
+      recordings: day.recordings.map((recording) => ({
+        id: recording.id,
+        mode: recording.mode,
+        label: recording.label,
+        startedAt:
+          recording.startedAt === undefined
+            ? null
+            : new Date(recording.startedAt).toISOString(),
+        endedAt:
+          recording.endedAt === undefined
+            ? null
+            : new Date(recording.endedAt).toISOString(),
+        turns: recording.turns,
+      })),
+    },
+    null,
+    2,
+  );
+}
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+/**
+ * Word-compatible HTML saved with a .doc extension so parents can open a
+ * day's transcripts directly in Word/LibreOffice without extra tooling.
+ */
+export function dayToWordHtml(day: DayGroup) {
+  const sections = day.recordings
+    .map(
+      (recording) => `<h2>${escapeHtml(recording.label)}</h2>` +
+        (recording.startedAt !== undefined
+          ? `<p><i>Recorded ${escapeHtml(new Date(recording.startedAt).toISOString())} · ${escapeHtml(recording.mode)} · ${escapeHtml(recording.id)}</i></p>`
+          : "") +
+        recording.turns
+          .map(
+            (turn) =>
+              `<p><b>${escapeHtml(turn.speaker)}:</b> ${escapeHtml(turn.text)}</p>`,
+          )
+          .join("\n"),
+    )
+    .join("\n");
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${escapeHtml(day.heading)}</title></head><body><h1>${escapeHtml(day.heading)}</h1><p>${day.recordings.length} ${day.recordings.length === 1 ? "recording" : "recordings"}</p>${sections}</body></html>`;
+}
+/** Serializes one day and triggers a browser download. */
+export function downloadDay(day: DayGroup, format: DayExportFormat) {
+  const mime =
+    format === "json"
+      ? "application/json"
+      : format === "md"
+        ? "text/markdown"
+        : "application/msword";
+  const content =
+    format === "json"
+      ? dayToJson(day)
+      : format === "md"
+        ? dayToMarkdown(day)
+        : dayToWordHtml(day);
+  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = dayExportFilename(day, format);
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 /**
  * Renders the review list into `container` using text nodes only.
  * Each recording opens as a chat-style document, one speaker turn per line.
@@ -249,6 +355,23 @@ export function renderTranscripts(
   for (const day of days) {
     const section = make("section", "transcript-day");
     section.append(make("h4", "transcript-heading", day.heading));
+    const exports = make("div", "transcript-exports");
+    for (const format of ["md", "doc", "json"] as const) {
+      const button = make(
+        "button",
+        "transcript-export",
+        `Export ${format === "doc" ? ".doc" : `.${format}`}`,
+      );
+      button.setAttribute("type", "button");
+      button.setAttribute("data-format", format);
+      button.setAttribute(
+        "aria-label",
+        `Export ${day.heading} as ${format === "doc" ? "Word (.doc)" : format === "md" ? "Markdown" : "JSON"}`,
+      );
+      button.addEventListener("click", () => downloadDay(day, format));
+      exports.append(button);
+    }
+    section.append(exports);
     if (day.key === UNDATED) section.append(make("p", "tiny", UNDATED_NOTE));
     for (const recording of day.recordings) {
       const details = make("details", "transcript-recording");

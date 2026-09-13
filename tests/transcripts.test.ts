@@ -8,6 +8,10 @@ import { defaults } from "../server/lesson";
 import {
   UNDATED,
   UNDATED_HEADING,
+  dayExportFilename,
+  dayToJson,
+  dayToMarkdown,
+  dayToWordHtml,
   formatDayHeading,
   formatDuration,
   groupByDay,
@@ -227,7 +231,20 @@ test("chat-style rendering: one labelled turn per line, live deltas joined, text
   );
   assert.equal(day.children[0].tagName, "h4");
   assert.equal(day.children[0].textContent, "Sunday, Sept 13th");
-  const details = day.children[1];
+  const toolbar = day.children[1];
+  assert.equal(toolbar.className, "transcript-exports");
+  assert.deepEqual(
+    toolbar.children.map((button) => [
+      button.textContent,
+      button.attributes["data-format"],
+    ]),
+    [
+      ["Export .md", "md"],
+      ["Export .doc", "doc"],
+      ["Export .json", "json"],
+    ],
+  );
+  const details = day.children[2];
   assert.equal(details.tagName, "details");
   assert.equal(
     details.children[0].textContent,
@@ -248,6 +265,48 @@ test("chat-style rendering: one labelled turn per line, live deltas joined, text
     zone,
   );
   assert.equal(container.textContent, "No saved transcripts.");
+});
+
+test("per-day export: markdown for agents, Word-compatible doc, and JSON", () => {
+  const archive: TranscriptArchive = {
+    sessions: [
+      {
+        id: "s",
+        mode: "live",
+        startedAt: SUNDAY_EVENING,
+        endedAt: SUNDAY_EVENING + MINUTE,
+      },
+    ],
+    entries: [
+      { role: "user", text: "<b>Hello</b>", session: "s", at: SUNDAY_EVENING },
+      { role: "assistant", text: "Bonjour & bienvenue", session: "s", at: SUNDAY_EVENING },
+    ],
+  };
+  const [day] = groupByDay(archive, zone);
+  assert.equal(dayExportFilename(day, "md"), "miette-transcripts-2026-09-13.md");
+  assert.equal(dayExportFilename(day, "doc"), "miette-transcripts-2026-09-13.doc");
+  assert.equal(dayExportFilename(day, "json"), "miette-transcripts-2026-09-13.json");
+  assert.equal(
+    dayExportFilename({ key: UNDATED, heading: UNDATED_HEADING }, "md"),
+    "miette-transcripts-earlier-recordings.md",
+  );
+  const markdown = dayToMarkdown(day);
+  assert.match(markdown, /^# Sunday, Sept 13th/m);
+  assert.match(markdown, /\*\*Me:\*\* <b>Hello<\/b>/);
+  assert.match(markdown, /\*\*Miette:\*\* Bonjour & bienvenue/);
+  assert.match(markdown, new RegExp(`Recorded: .* · mode: live · id: s`));
+  const parsed = JSON.parse(dayToJson(day));
+  assert.equal(parsed.heading, "Sunday, Sept 13th");
+  assert.equal(parsed.key, "2026-09-13");
+  assert.equal(parsed.recordings.length, 1);
+  assert.equal(parsed.recordings[0].turns[0].speaker, "Me");
+  assert.equal(parsed.recordings[0].startedAt, new Date(SUNDAY_EVENING).toISOString());
+  const doc = dayToWordHtml(day);
+  assert.match(doc, /<h1>Sunday, Sept 13th<\/h1>/);
+  assert.match(doc, /<b>Me:<\/b> &lt;b&gt;Hello&lt;\/b&gt;/);
+  assert.match(doc, /Bonjour &amp; bienvenue/);
+  // Markup in transcript text is escaped, never emitted as HTML.
+  assert.doesNotMatch(doc, /<b>Hello<\/b>/);
 });
 
 test("store persists session metadata, updates ended-at, prunes aged sessions and migrates legacy files", () => {
@@ -334,9 +393,12 @@ type FakeNode = {
   children: FakeNode[];
   text: string;
   textContent: string;
+  attributes: Record<string, string>;
   ownerDocument: FakeDocument;
   append: (...nodes: FakeNode[]) => void;
   replaceChildren: () => void;
+  setAttribute: (name: string, value: string) => void;
+  addEventListener: (...args: unknown[]) => void;
 };
 type FakeDocument = {
   createElement: (tag: string) => FakeNode;
@@ -350,7 +412,12 @@ function fakeDocument(): FakeDocument {
         className: "",
         children: [],
         text: "",
+        attributes: {},
         ownerDocument: doc,
+        setAttribute(name: string, value: string) {
+          this.attributes[name] = value;
+        },
+        addEventListener() {},
         get textContent() {
           return this.text + this.children.map((c) => c.textContent).join("");
         },

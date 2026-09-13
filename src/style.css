@@ -674,6 +674,17 @@ pre {
   color: #70458b;
   margin-bottom: 6px;
 }
+.transcript-exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+.transcript-export {
+  font-size: 11px;
+  padding: 4px 10px;
+  margin: 0;
+}
 .transcript-recording {
   border-top: 1px solid var(--line);
   padding: 6px 0;

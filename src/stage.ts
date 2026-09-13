@@ -35,6 +35,9 @@ export type StageInput = {
   avatarState: AvatarState;
   remainingMs: number | null;
   micMuted?: boolean;
+  // Compact avatar-only window: one click on Miette starts talking; the
+  // approval dialog belongs to the full window.
+  avatarOnly?: boolean;
 };
 export type StageView = {
   phase: StagePhase;
@@ -118,8 +121,9 @@ export function micView(input: StageInput): MicView {
         state: "idle",
         action: "start",
         caption: "Talk to Miette",
-        ariaLabel:
-          "Start a live voice conversation with Miette · parent approval required",
+        ariaLabel: input.avatarOnly
+          ? "Start talking with Miette"
+          : "Start a live voice conversation with Miette · parent approval required",
       }
     : {
         state: "unavailable",
@@ -179,7 +183,9 @@ export function stageView(input: StageInput): StageView {
     icon: "●",
     label: labels[input.avatarState],
     ariaLabel: input.liveAvailable
-      ? "Start a live voice session · parent approval required"
+      ? input.avatarOnly
+        ? "Start talking with Miette"
+        : "Start a live voice session · parent approval required"
       : "Live voice unavailable · select for details",
     mic,
   };

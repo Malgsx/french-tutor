@@ -64,11 +64,18 @@ if (process.env.LIVE_ENABLED === undefined) info("LIVE_ENABLED not exported; use
 else if (process.env.LIVE_ENABLED !== "true") bad(`LIVE_ENABLED is “${process.env.LIVE_ENABLED}”; only the exact word true works.`);
 else ok("LIVE_ENABLED=true exported");
 
-const key = (shellKey ?? fileValues.OPENAI_API_KEY ?? "").trim().replace(/^["']|["']$/g, "");
+const unquote = (value: string) => value.trim().replace(/^["']|["']$/g, "");
+const fileKey = unquote(fileValues.OPENAI_API_KEY ?? "");
+const key = unquote(shellKey ?? fileKey);
 const liveOn = (process.env.LIVE_ENABLED ?? fileValues.LIVE_ENABLED?.trim()) === "true";
 console.log("\n3. What the server will use");
 if (!key) bad("No key anywhere: Live cannot start. Add OPENAI_API_KEY=sk-… to .env next to package.json.");
 else ok(`Key ${mask(key)} from ${shellKey ? "the Terminal" : ".env"}`);
+if (shellKey && fileKey && unquote(shellKey) !== fileKey)
+  bad("The Terminal key is DIFFERENT from the one in .env and it wins. Run: unset OPENAI_API_KEY   (and remove the export from ~/.zshrc or ~/.bash_profile so it stays gone).");
+// Other providers reuse the OPENAI_API_KEY name; only OpenAI keys work with api.openai.com.
+if (key.startsWith("sk-or-")) bad("This is an OpenRouter key (sk-or-…), not an OpenAI key. OpenAI will reject it. Use a key from platform.openai.com.");
+else if (key.startsWith("sk-ant-")) bad("This is an Anthropic key (sk-ant-…), not an OpenAI key. Use a key from platform.openai.com.");
 if (!liveOn) bad("Live is switched off: start with npm run desktop:live (or LIVE_ENABLED=true in .env).");
 
 console.log(`\n4. OpenAI (${LIVE_SESSIONS_URL})`);

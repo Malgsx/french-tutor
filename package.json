@@ -14,6 +14,7 @@
     "check": "tsc --noEmit && eslint .",
     "test": "tsx --test tests/*.test.ts",
     "desktop": "npm run build && npm exec --yes --package=node@26.5.0 -- node desktop/start.mjs",
+    "desktop:live": "LIVE_ENABLED=true npm run desktop",
     "desktop:pack": "electron-builder --mac dir"
   },
   "dependencies": {

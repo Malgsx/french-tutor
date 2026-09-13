@@ -15,7 +15,9 @@ The separate Home checkout is `/Users/malgsx/Home` and is unchanged. References
 to `tutor/` below mean this French Tutor folder for this local installation.
 This folder is its own local Git repository. Credentials (`.env` and `.env.*`),
 learning data/screenshots (`.local/`), dependencies and build output are ignored.
-No remote is configured and nothing has been pushed or published.
+The private GitHub repository is [Malgsx/french-tutor](https://github.com/Malgsx/french-tutor).
+Other agents need authenticated access to that repository; credentials and local
+learning data are not included in a clone.
 
 The default Node on this Mac is 25.2.1. The desktop command automatically uses
 an isolated Node 26.5 runtime; no system Node upgrade is needed.
@@ -24,6 +26,16 @@ an isolated Node 26.5 runtime; no system Node upgrade is needed.
 cd "/Users/malgsx/French Tutor"
 npm run desktop
 ```
+
+For Live-enabled startup, with your API key already configured privately:
+
+```sh
+npm run desktop:live
+```
+
+This sets `LIVE_ENABLED=true` and runs the same combined server/desktop startup.
+It never prompts for, saves, or supplies a key. Without a key, Live stays disabled.
+You still approve each paid voice session in the app.
 
 This builds the UI, starts the server if needed, waits until it is ready, and
 opens Miette. **Keep this Terminal open.** No separate `npm start` is needed.
@@ -56,7 +68,7 @@ with GPT-Live access. No parent password is required in this local version.
 cd "/Users/malgsx/French Tutor"
 read -rs 'OPENAI_API_KEY?OpenAI project key (hidden): '; printf '\n'
 export OPENAI_API_KEY
-LIVE_ENABLED=true npm run desktop
+npm run desktop:live
 ```
 
 Choose **Live voice**, approve the paid session, and allow microphone access.
@@ -74,7 +86,8 @@ Install **Node.js 26.5 or newer** and npm. The document worker uses Node's netwo
 permission controls; do not run it on older versions. Then:
 
 ```sh
-cd tutor
+gh repo clone Malgsx/french-tutor
+cd french-tutor
 npm ci
 npm run check
 npm test

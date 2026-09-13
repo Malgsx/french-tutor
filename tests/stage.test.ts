@@ -71,6 +71,19 @@ test("idle -> connecting -> live -> paused -> live transitions", () => {
   assert.equal(paused.icon, "▶");
   assert.equal(paused.label, "Paused · mic muted · 1:01 left");
   assert.match(paused.ariaLabel, /^Resume live session/);
+  assert.doesNotMatch(paused.ariaLabel, /unmute/i);
+  assert.match(paused.ariaLabel, /microphone mute setting is unchanged/);
+  const pausedMuted = stageView({
+    ...idle,
+    live: true,
+    ready: true,
+    paused: true,
+    micMuted: true,
+    avatarState: "idle",
+    remainingMs: 61000,
+  });
+  assert.match(pausedMuted.ariaLabel, /microphone stays muted/);
+  assert.doesNotMatch(pausedMuted.ariaLabel, /unmute/i);
   const resumed = stageView({
     ...idle,
     live: true,
@@ -126,6 +139,12 @@ test("microphone button mirrors the pill and adds cut-in while Miette speaks", (
   });
   assert.equal(paused.state, "paused");
   assert.equal(paused.action, "resume");
+  assert.doesNotMatch(paused.ariaLabel, /unmute/i);
+  assert.match(
+    micView({ ...idle, live: true, ready: true, paused: true, micMuted: true })
+      .ariaLabel,
+    /microphone stays muted/,
+  );
   // Both controls derive from one input, so pause state can never disagree.
   const view = stageView({ ...idle, live: true, ready: true, paused: true });
   assert.equal(view.phase, "paused");

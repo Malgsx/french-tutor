@@ -1,6 +1,7 @@
 import {
   api,
   commentary,
+  replyIdentities,
   transcript,
   type AvatarState,
   type Fragment,
@@ -32,9 +33,13 @@ export class LiveSession {
   private paused = false;
   private micMuted = false;
   private silenced = false;
-  // After a cut-in, playback returns only once the learner has spoken and a
-  // new assistant transcript arrives, so a lingering old answer stays quiet.
+  // After a cut-in, playback returns only once the learner has spoken and the
+  // newly started assistant reply arrives. Identity (item/reply id) distinguishes
+  // that reply from delayed deltas of the interrupted answer.
   private cutIn: "none" | "waiting-for-learner" | "waiting-for-reply" = "none";
+  private lastAssistantIds: string[] = [];
+  private interruptedIds = new Set<string>();
+  private cutInLearnerStartMs?: number;
   private deadline?: number;
   private history: Fragment[] = [];
   private delegations = new Set<string>();
@@ -51,6 +56,9 @@ export class LiveSession {
   }
   get isSilenced() {
     return this.silenced;
+  }
+  get isMicMuted() {
+    return this.micMuted;
   }
   remainingMs() {
     return this.deadline === undefined
@@ -212,18 +220,25 @@ export class LiveSession {
       this.history.push(fragment);
       this.history = this.history.slice(-500);
       this.hooks.fragment(fragment);
-      if (fragment.role === "user" && this.cutIn === "waiting-for-learner")
+      if (fragment.role === "user" && this.cutIn === "waiting-for-learner") {
         this.cutIn = "waiting-for-reply";
-      else if (
-        fragment.role === "assistant" &&
-        this.cutIn === "waiting-for-reply"
-      ) {
-        this.cutIn = "none";
-        this.silenced = false;
-        this.apply();
-        this.hooks.notice(
-          "Miette is answering · playback back on · you can interrupt again",
-        );
+        this.cutInLearnerStartMs = fragment.start_ms;
+      } else if (fragment.role === "assistant") {
+        const ids = replyIdentities(event);
+        if (ids.length) this.lastAssistantIds = ids;
+        if (this.cutIn === "waiting-for-learner")
+          for (const id of ids) this.interruptedIds.add(id);
+        else if (
+          this.cutIn === "waiting-for-reply" &&
+          this.isNewAssistantReply(event, fragment)
+        ) {
+          this.clearCutIn();
+          this.silenced = false;
+          this.apply();
+          this.hooks.notice(
+            "Miette is answering · playback back on · you can interrupt again",
+          );
+        }
       }
     }
     if (
@@ -297,10 +312,26 @@ export class LiveSession {
   // Cut-in: silence playback immediately and ask the model to stop. The append
   // is unacknowledged, so the local mute is what guarantees quiet; the model
   // itself also stops on server-side voice interruption when the learner talks.
+  private isNewAssistantReply(event: LiveEvent, fragment: Fragment) {
+    const ids = replyIdentities(event);
+    if (ids.length)
+      return ids.some((id) => !this.interruptedIds.has(id));
+    return (
+      this.cutInLearnerStartMs !== undefined &&
+      fragment.start_ms > this.cutInLearnerStartMs
+    );
+  }
+  private clearCutIn() {
+    this.cutIn = "none";
+    this.interruptedIds.clear();
+    this.cutInLearnerStartMs = undefined;
+  }
   interrupt() {
     if (this.closing || this.disposed) return;
     this.silenced = true;
     this.cutIn = "waiting-for-learner";
+    this.interruptedIds = new Set(this.lastAssistantIds);
+    this.cutInLearnerStartMs = undefined;
     this.apply();
     this.send({
       type: "session.instructions.append",
@@ -317,7 +348,7 @@ export class LiveSession {
   resumeAudio() {
     if (this.closing || this.disposed) return;
     this.silenced = false;
-    this.cutIn = "none";
+    this.clearCutIn();
     this.apply();
   }
   stop() {

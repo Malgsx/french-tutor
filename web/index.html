@@ -57,8 +57,17 @@
           ><span class="star star-two">✧</span
           ><span class="stage-lines" aria-hidden="true">/////</span>
           <div class="state-label">
-            <span id="state-dot">●</span>
-            <span id="state-label">Idle · ready when you are</span>
+            <button
+              id="stage-toggle"
+              class="stage-toggle"
+              type="button"
+              data-phase="idle"
+              aria-label="Start a live voice session · parent approval required"
+            >
+              <span id="state-dot" aria-hidden="true">●</span>
+              <span id="state-label">Idle · ready when you are</span>
+            </button>
+            <p id="stage-hint" class="stage-hint" role="status" hidden></p>
           </div>
           <button id="expand-avatar">Open chat ↗</button>
         </section>
@@ -135,7 +144,27 @@
         <section class="controls">
           <button id="start" class="primary">
             ▶ Start demo <small>No microphone. No API calls.</small></button
-          ><button id="live" class="secondary">
+          ><button
+            id="mic"
+            class="mic"
+            type="button"
+            data-mic="idle"
+            aria-label="Start a live voice conversation with Miette · parent approval required"
+          >
+            <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path
+                d="M6 11a6 6 0 0 0 12 0M12 17v4M8.5 21h7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span id="mic-caption">Talk to Miette</span>
+          </button>
+          <p id="mic-hint" class="stage-hint mic-hint" role="status" hidden></p>
+          <button id="live" class="secondary">
             Live voice · parent approval
           </button>
           <div class="session-tools">

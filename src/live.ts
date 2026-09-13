@@ -14,6 +14,7 @@ type Hooks = {
   ended: () => void;
   lesson: (context: string) => Promise<string>;
 };
+export const LIVE_LIMIT_MS = 600000;
 export class LiveSession {
   private peer?: RTCPeerConnection;
   private channel?: RTCDataChannel;
@@ -27,6 +28,14 @@ export class LiveSession {
   private ready = false;
   private closing = false;
   private disposed = false;
+  // Pause, Mute mic and Interrupt are independent switches; apply() reconciles them.
+  private paused = false;
+  private micMuted = false;
+  private silenced = false;
+  // After a cut-in, playback returns only once the learner has spoken and a
+  // new assistant transcript arrives, so a lingering old answer stays quiet.
+  private cutIn: "none" | "waiting-for-learner" | "waiting-for-reply" = "none";
+  private deadline?: number;
   private history: Fragment[] = [];
   private delegations = new Set<string>();
   private pending = 0;
@@ -34,6 +43,20 @@ export class LiveSession {
     private audio: HTMLAudioElement,
     private hooks: Hooks,
   ) {}
+  get isReady() {
+    return this.ready;
+  }
+  get isPaused() {
+    return this.paused;
+  }
+  get isSilenced() {
+    return this.silenced;
+  }
+  remainingMs() {
+    return this.deadline === undefined
+      ? null
+      : Math.max(0, this.deadline - Date.now());
+  }
   async start() {
     this.hooks.state("thinking");
     this.hooks.notice("Connecting · microphone permission required");
@@ -50,6 +73,7 @@ export class LiveSession {
       }
       this.hooks.notice("Microphone ON · connecting · audio is sent to OpenAI");
       this.mic.getAudioTracks().forEach((t) => peer.addTrack(t, this.mic!));
+      this.apply();
       this.context = new AudioContext();
       await this.context.resume();
       peer.ontrack = (event) => {
@@ -69,7 +93,7 @@ export class LiveSession {
         const data = new Uint8Array(analyser.fftSize);
         let lastSound = 0;
         this.meter = setInterval(() => {
-          if (!this.ready || this.closing) return;
+          if (!this.ready || this.closing || this.paused) return;
           analyser.getByteTimeDomainData(data);
           if (
             data.some((value) => Math.abs(value - 128) > 5) &&
@@ -180,13 +204,27 @@ export class LiveSession {
         content:
           "Greet immediately in French: Bonjour! Explain briefly that you are an AI tutor, then invite one short reply and listen.",
       });
-      this.limitTimer = setTimeout(() => this.stop(), 600000);
+      this.deadline = Date.now() + LIVE_LIMIT_MS;
+      this.limitTimer = setTimeout(() => this.stop(), LIVE_LIMIT_MS);
     }
     const fragment = transcript(event);
     if (fragment) {
       this.history.push(fragment);
       this.history = this.history.slice(-500);
       this.hooks.fragment(fragment);
+      if (fragment.role === "user" && this.cutIn === "waiting-for-learner")
+        this.cutIn = "waiting-for-reply";
+      else if (
+        fragment.role === "assistant" &&
+        this.cutIn === "waiting-for-reply"
+      ) {
+        this.cutIn = "none";
+        this.silenced = false;
+        this.apply();
+        this.hooks.notice(
+          "Miette is answering · playback back on · you can interrupt again",
+        );
+      }
     }
     if (
       event.type === "session.delegation.created" &&
@@ -214,33 +252,73 @@ export class LiveSession {
     if (this.ready && !this.closing && this.channel?.readyState === "open")
       this.channel.send(JSON.stringify(event));
   }
+  private apply() {
+    const micOn = !this.micMuted && !this.paused && !this.closing;
+    this.mic?.getTracks().forEach((track) => {
+      track.enabled = micOn;
+    });
+    this.audio.muted = this.silenced || this.paused || this.closing;
+  }
   mute(muted: boolean) {
     if (this.closing || this.disposed) return;
-    this.mic?.getTracks().forEach((track) => {
-      track.enabled = !muted;
-    });
+    this.micMuted = muted;
+    this.apply();
     this.hooks.notice(
       muted
         ? "Microphone MUTED · device track disabled · live time still billed"
+        : this.paused
+          ? "Paused · microphone stays muted until you press play"
+          : "Microphone ON · speak naturally; you can interrupt",
+    );
+  }
+  // Pause is local only: the mic track and playback are muted while the session
+  // stays open so play resumes instantly. No stop instruction is sent because
+  // instruction appends are unacknowledged and could not confirm the model stopped.
+  pause() {
+    if (this.closing || this.disposed || this.paused) return;
+    this.paused = true;
+    this.apply();
+    this.hooks.state("idle");
+    this.hooks.notice(
+      "Paused · microphone MUTED and playback silenced · session open, live time still billed",
+    );
+  }
+  resume() {
+    if (this.closing || this.disposed || !this.paused) return;
+    this.paused = false;
+    this.apply();
+    this.hooks.state(this.ready ? "listening" : "thinking");
+    this.hooks.notice(
+      this.micMuted
+        ? "Resumed · microphone still MUTED · select Unmute mic to speak"
         : "Microphone ON · speak naturally; you can interrupt",
     );
   }
+  // Cut-in: silence playback immediately and ask the model to stop. The append
+  // is unacknowledged, so the local mute is what guarantees quiet; the model
+  // itself also stops on server-side voice interruption when the learner talks.
   interrupt() {
-    this.audio.muted = true;
+    if (this.closing || this.disposed) return;
+    this.silenced = true;
+    this.cutIn = "waiting-for-learner";
+    this.apply();
     this.send({
       type: "session.instructions.append",
       delegation_id: null,
       event_id: crypto.randomUUID(),
       content:
-        "Stop speaking now and wait for the learner. Do not repeat the interrupted answer.",
+        "The learner interrupted you. Stop speaking now and listen. Do not repeat the interrupted answer. When they speak, answer their question briefly as their French tutor: simple French first, a short English explanation if helpful, one gentle correction at most, then invite them to continue practising.",
     });
+    if (this.ready && !this.paused) this.hooks.state("listening");
     this.hooks.notice(
-      "Playback silenced · microphone unchanged · select Resume audio when ready",
+      "Miette silenced · your turn, speak now · her reply plays automatically (Resume audio brings sound back sooner)",
     );
   }
   resumeAudio() {
     if (this.closing || this.disposed) return;
-    this.audio.muted = false;
+    this.silenced = false;
+    this.cutIn = "none";
+    this.apply();
   }
   stop() {
     if (this.disposed || this.closing) return;
@@ -253,10 +331,7 @@ export class LiveSession {
     }
     this.channel?.send(JSON.stringify({ type: "session.close" }));
     this.closing = true;
-    this.mic?.getTracks().forEach((t) => {
-      t.enabled = false;
-    });
-    this.audio.muted = true;
+    this.apply();
     this.hooks.notice("Microphone MUTED · ending session…");
     this.closeTimer = setTimeout(
       () =>

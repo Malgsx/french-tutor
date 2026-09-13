@@ -92,6 +92,7 @@ body.desktop .controls {
 }
 body.desktop .session-tools,
 body.desktop #status,
+body.desktop .mic-hint,
 body.desktop audio {
   grid-column: 1 / -1;
 }
@@ -149,10 +150,14 @@ body.avatar-only .stage .avatar {
 body.avatar-only .state-label {
   bottom: 20px;
   font-size: 9px;
-  background: #fffdf5ed;
-  border-radius: 12px;
-  padding: 5px 0;
   margin: 0 10px;
+}
+body.avatar-only .stage-toggle {
+  padding: 5px 10px;
+  -webkit-app-region: no-drag;
+}
+body.avatar-only .stage-hint {
+  margin: 6px 0 0;
 }
 body.avatar-only #expand-avatar {
   display: block;

@@ -2,6 +2,7 @@ import "./style.css";
 import { createAvatar } from "./avatar";
 import { api, commentary, type AvatarState, type Fragment } from "./protocol";
 import { LiveSession, delegatedLesson } from "./live";
+import { stageView, UNAVAILABLE_REASON } from "./stage";
 import type { Settings, Progress, Word, Plan } from "../server/lesson";
 
 declare global {
@@ -30,6 +31,8 @@ let revision = 0;
 let muted = false;
 let interrupted = false;
 let animationTimer: ReturnType<typeof setTimeout>;
+let stageTimer: ReturnType<typeof setInterval> | undefined;
+let avatarState: AvatarState = "idle";
 const captions = new Map<string, HTMLElement>();
 let avatar: ReturnType<typeof createAvatar> | undefined;
 try {
@@ -38,20 +41,62 @@ try {
   el("avatar").textContent =
     "✦ Miette · 3D unavailable on this device. Chat still works.";
 }
-const labels: Record<AvatarState, string> = {
-  idle: "Idle · ready when you are",
-  listening: "Listening · your turn",
-  thinking: "Thinking · checking the lesson",
-  speaking: "Speaking · jump in anytime",
-  correction: "Small adjustment · give it another go",
-  success: "Nice one · keep that energy",
-  error: "A snag · let’s pause here",
-};
+function currentStage() {
+  return stageView({
+    live: !!live,
+    ready: live?.isReady ?? false,
+    paused: live?.isPaused ?? false,
+    demo,
+    liveAvailable: !!snapshot?.liveAvailable,
+    avatarState,
+    remainingMs: live?.remainingMs() ?? null,
+  });
+}
+function renderStage() {
+  const view = currentStage();
+  const toggle = el<HTMLButtonElement>("stage-toggle");
+  el("state-dot").textContent = view.icon;
+  el("state-label").textContent = view.label;
+  toggle.dataset.phase = view.phase;
+  toggle.setAttribute("aria-label", view.ariaLabel);
+  toggle.title = view.ariaLabel;
+  toggle.disabled = view.action === "none";
+  el("avatar").classList.toggle("actionable", view.action !== "none");
+  if (live && !stageTimer) stageTimer = setInterval(renderStage, 1000);
+  if (!live && stageTimer) {
+    clearInterval(stageTimer);
+    stageTimer = undefined;
+  }
+}
+function stageHint(text: string) {
+  el("stage-hint").textContent = text;
+  el("stage-hint").hidden = !text;
+}
+function stagePress() {
+  const { action } = currentStage();
+  if (action !== "unavailable") stageHint("");
+  switch (action) {
+    case "start":
+      liveDialog.showModal();
+      break;
+    case "unavailable":
+      stageHint(UNAVAILABLE_REASON);
+      break;
+    case "pause":
+      live?.pause();
+      break;
+    case "resume":
+      live?.resume();
+      break;
+  }
+  renderStage();
+}
 function setState(state: AvatarState) {
+  avatarState = state;
   avatar?.setState(state);
   el("avatar").dataset.state = state;
   el("avatar").setAttribute("aria-label", `Miette, ${state}`);
-  el("state-label").textContent = `${labels[state]}${demo ? " (demo)" : ""}`;
+  renderStage();
 }
 function notice(text: string) {
   el("status").textContent = text;
@@ -118,6 +163,7 @@ function controls() {
   el("retention").textContent = snapshot?.settings.retainTranscripts
     ? "Saved · parent enabled"
     : "Not saved";
+  renderStage();
 }
 async function refresh() {
   snapshot = await api<Snapshot>("state");
@@ -386,6 +432,8 @@ el("reset").onclick = async () => {
 };
 const liveDialog = el<HTMLDialogElement>("live-dialog");
 el("live").onclick = () => liveDialog.showModal();
+el("stage-toggle").onclick = stagePress;
+el("avatar").onclick = stagePress;
 el("cancel-live").onclick = () => liveDialog.close();
 liveDialog.onclose = () => {
   el<HTMLInputElement>("approve-live").checked = false;
@@ -398,6 +446,7 @@ el("live-form").onsubmit = async (event) => {
   button.disabled = true;
   try {
     liveDialog.close();
+    stageHint("");
     el("messages").replaceChildren();
     captions.clear();
     muted = false;

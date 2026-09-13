@@ -281,9 +281,59 @@ h1 em {
   font-weight: bold;
   z-index: 3;
 }
-.state-label span:first-child {
+.stage-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #b99acf;
+  background: #fffdf5d9;
+}
+.stage-toggle[data-phase="live"],
+.stage-toggle[data-phase="connecting"] {
+  border-color: var(--ink);
+  background: #fffdf6;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.stage-toggle[data-phase="paused"] {
+  background: var(--yellow);
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.stage-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+  border-color: transparent;
+  background: transparent;
+}
+.stage-toggle:disabled:hover {
+  transform: none;
+}
+#state-dot {
   color: #5d3a7a;
-  margin-right: 4px;
+}
+.stage-toggle[data-phase="live"] #state-dot,
+.stage-toggle[data-phase="paused"] #state-dot,
+.stage-toggle[data-phase="connecting"] #state-dot {
+  font-size: 13px;
+  line-height: 1;
+}
+.stage-hint {
+  font-size: 10px;
+  font-weight: normal;
+  line-height: 1.5;
+  color: #4c3358;
+  background: #fffdf6;
+  border: 1px solid var(--ink);
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin: 8px 24px 0;
+}
+.avatar.actionable {
+  cursor: pointer;
 }
 .panel {
   background: #fffdf8;

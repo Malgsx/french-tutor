@@ -14,6 +14,7 @@ type Hooks = {
   ended: () => void;
   lesson: (context: string) => Promise<string>;
 };
+export const LIVE_LIMIT_MS = 600000;
 export class LiveSession {
   private peer?: RTCPeerConnection;
   private channel?: RTCDataChannel;
@@ -27,6 +28,11 @@ export class LiveSession {
   private ready = false;
   private closing = false;
   private disposed = false;
+  // Pause, Mute mic and Interrupt are independent switches; apply() reconciles them.
+  private paused = false;
+  private micMuted = false;
+  private silenced = false;
+  private deadline?: number;
   private history: Fragment[] = [];
   private delegations = new Set<string>();
   private pending = 0;
@@ -34,6 +40,17 @@ export class LiveSession {
     private audio: HTMLAudioElement,
     private hooks: Hooks,
   ) {}
+  get isReady() {
+    return this.ready;
+  }
+  get isPaused() {
+    return this.paused;
+  }
+  remainingMs() {
+    return this.deadline === undefined
+      ? null
+      : Math.max(0, this.deadline - Date.now());
+  }
   async start() {
     this.hooks.state("thinking");
     this.hooks.notice("Connecting · microphone permission required");
@@ -50,6 +67,7 @@ export class LiveSession {
       }
       this.hooks.notice("Microphone ON · connecting · audio is sent to OpenAI");
       this.mic.getAudioTracks().forEach((t) => peer.addTrack(t, this.mic!));
+      this.apply();
       this.context = new AudioContext();
       await this.context.resume();
       peer.ontrack = (event) => {
@@ -69,7 +87,7 @@ export class LiveSession {
         const data = new Uint8Array(analyser.fftSize);
         let lastSound = 0;
         this.meter = setInterval(() => {
-          if (!this.ready || this.closing) return;
+          if (!this.ready || this.closing || this.paused) return;
           analyser.getByteTimeDomainData(data);
           if (
             data.some((value) => Math.abs(value - 128) > 5) &&
@@ -180,7 +198,8 @@ export class LiveSession {
         content:
           "Greet immediately in French: Bonjour! Explain briefly that you are an AI tutor, then invite one short reply and listen.",
       });
-      this.limitTimer = setTimeout(() => this.stop(), 600000);
+      this.deadline = Date.now() + LIVE_LIMIT_MS;
+      this.limitTimer = setTimeout(() => this.stop(), LIVE_LIMIT_MS);
     }
     const fragment = transcript(event);
     if (fragment) {
@@ -214,19 +233,51 @@ export class LiveSession {
     if (this.ready && !this.closing && this.channel?.readyState === "open")
       this.channel.send(JSON.stringify(event));
   }
+  private apply() {
+    const micOn = !this.micMuted && !this.paused && !this.closing;
+    this.mic?.getTracks().forEach((track) => {
+      track.enabled = micOn;
+    });
+    this.audio.muted = this.silenced || this.paused || this.closing;
+  }
   mute(muted: boolean) {
     if (this.closing || this.disposed) return;
-    this.mic?.getTracks().forEach((track) => {
-      track.enabled = !muted;
-    });
+    this.micMuted = muted;
+    this.apply();
     this.hooks.notice(
       muted
         ? "Microphone MUTED · device track disabled · live time still billed"
+        : this.paused
+          ? "Paused · microphone stays muted until you press play"
+          : "Microphone ON · speak naturally; you can interrupt",
+    );
+  }
+  // Pause is local only: the mic track and playback are muted while the session
+  // stays open so play resumes instantly. No stop instruction is sent because
+  // instruction appends are unacknowledged and could not confirm the model stopped.
+  pause() {
+    if (this.closing || this.disposed || this.paused) return;
+    this.paused = true;
+    this.apply();
+    this.hooks.state("idle");
+    this.hooks.notice(
+      "Paused · microphone MUTED and playback silenced · session open, live time still billed",
+    );
+  }
+  resume() {
+    if (this.closing || this.disposed || !this.paused) return;
+    this.paused = false;
+    this.apply();
+    this.hooks.state(this.ready ? "listening" : "thinking");
+    this.hooks.notice(
+      this.micMuted
+        ? "Resumed · microphone still MUTED · select Unmute mic to speak"
         : "Microphone ON · speak naturally; you can interrupt",
     );
   }
   interrupt() {
-    this.audio.muted = true;
+    this.silenced = true;
+    this.apply();
     this.send({
       type: "session.instructions.append",
       delegation_id: null,
@@ -240,7 +291,8 @@ export class LiveSession {
   }
   resumeAudio() {
     if (this.closing || this.disposed) return;
-    this.audio.muted = false;
+    this.silenced = false;
+    this.apply();
   }
   stop() {
     if (this.disposed || this.closing) return;
@@ -253,10 +305,7 @@ export class LiveSession {
     }
     this.channel?.send(JSON.stringify({ type: "session.close" }));
     this.closing = true;
-    this.mic?.getTracks().forEach((t) => {
-      t.enabled = false;
-    });
-    this.audio.muted = true;
+    this.apply();
     this.hooks.notice("Microphone MUTED · ending session…");
     this.closeTimer = setTimeout(
       () =>

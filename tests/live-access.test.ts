@@ -9,7 +9,7 @@ import {
   checkKey,
   configuredAccess,
   describeRefusal,
-  KEY_CHECK_URL,
+  LIVE_SESSIONS_URL,
 } from "../server/live-access";
 import { reuseNotice } from "../desktop/reuse-notice.mjs";
 
@@ -29,31 +29,67 @@ test("configuration and refusal reasons tell a parent exactly what to fix", () =
   assert.equal(configuredAccess(true, "sk-x").available, true);
   assert.match(configuredAccess(false, "sk-x").reason ?? "", /LIVE_ENABLED=true/);
   assert.match(configuredAccess(true, undefined).reason ?? "", /OPENAI_API_KEY is missing/);
-  assert.match(describeRefusal(401, "bad key"), /OPENAI_API_KEY \(401\).*bad key.*restart|start it again/s);
+  assert.match(describeRefusal(401, "bad key"), /OPENAI_API_KEY \(401\).*bad key.*start it again/s);
+  assert.match(describeRefusal(401, "Missing scopes: model.request"), /missing scope.*Model capabilities/s);
   assert.match(describeRefusal(403), /GPT-Live \(403\)/);
   assert.match(describeRefusal(429), /quota/);
   assert.match(describeRefusal(500), /refused session creation \(500\)/);
 });
 
-test("checkKey flags an invalid key, accepts a valid one and ignores network trouble", async () => {
-  const seen: { url: string; auth: string }[] = [];
-  const stub = (status: number) =>
+const missingScope = () =>
+  Response.json(
+    {
+      error: {
+        message:
+          "You have insufficient permissions for this operation. Missing scopes: model.request.",
+        type: "invalid_request_error",
+        code: "missing_scope",
+      },
+    },
+    { status: 401 },
+  );
+
+test("checkKey probes the Live endpoint itself: bad key, under-scoped key, good key, offline", async () => {
+  const seen: { url: string; method?: string; body?: unknown; auth: string }[] =
+    [];
+  const stub = (reply: () => Response) =>
     (async (url: RequestInfo | URL, init?: RequestInit) => {
       seen.push({
         url: String(url),
+        method: init?.method,
+        body: init?.body,
         auth: (init!.headers as Record<string, string>).Authorization,
       });
-      return status === 401 ? unauthorized() : Response.json({ data: [] });
+      return reply();
     }) as typeof fetch;
-  const bad = await checkKey("sk-bad ", stub(401));
+  const bad = await checkKey("sk-bad ", stub(unauthorized));
   assert.equal(bad.available, false);
   assert.match(bad.reason ?? "", /OPENAI_API_KEY/);
   assert.match(bad.reason ?? "", /Incorrect API key/);
-  assert.deepEqual(seen[0], { url: KEY_CHECK_URL, auth: "Bearer sk-bad " });
-  assert.deepEqual(await checkKey("sk-good", stub(200)), {
-    available: true,
-    reason: null,
+  // An empty body can never create a billable session: model and SDP are required.
+  assert.deepEqual(seen[0], {
+    url: LIVE_SESSIONS_URL,
+    method: "POST",
+    body: "{}",
+    auth: "Bearer sk-bad ",
   });
+  const scoped = await checkKey("sk-restricted", stub(missingScope));
+  assert.equal(scoped.available, false);
+  assert.match(scoped.reason ?? "", /restricted key/);
+  assert.match(scoped.reason ?? "", /Model capabilities/);
+  // A valid key fails body validation (400) without creating anything.
+  assert.deepEqual(
+    await checkKey(
+      "sk-good",
+      stub(() =>
+        Response.json(
+          { error: { message: "Missing required parameter: 'session'." } },
+          { status: 400 },
+        ),
+      ),
+    ),
+    { available: true, reason: null },
+  );
   assert.deepEqual(
     await checkKey("sk-offline", (async () => {
       throw new Error("ENOTFOUND");
@@ -109,10 +145,11 @@ test("a 401 from OpenAI is reported as a key problem and Live stops advertising 
         live: true,
         key: "sk-was-fine",
         preflight: true,
-        request: (async (url: RequestInfo | URL) => {
+        request: (async (_url: RequestInfo | URL, init?: RequestInit) => {
           calls++;
-          return String(url) === KEY_CHECK_URL
-            ? Response.json({ data: [] })
+          // The probe carries an empty body; the real offer is rejected as revoked.
+          return init?.body === "{}"
+            ? Response.json({ error: { message: "Missing session" } }, { status: 400 })
             : unauthorized();
         }) as typeof fetch,
       }),

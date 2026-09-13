@@ -19,6 +19,25 @@ export const LIVE_LIMIT_MS = 600000;
 export const LIVE_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
+// getUserMedia failures name a DOMException; say what the learner can do about it.
+export function micProblem(error: unknown): string {
+  const name = error instanceof Error ? error.name : "";
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Microphone blocked. Allow the microphone for Miette (in the browser’s site settings, or macOS System Settings › Privacy & Security › Microphone, where it may be listed as Electron), then try again.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No microphone found. Plug one in or pick an input device in your system sound settings, then try again.";
+    case "NotReadableError":
+    case "AbortError":
+      return "The microphone is busy or unreadable. Close other apps using it (calls, recorders), then try again.";
+    default:
+      return error instanceof Error && error.message
+        ? `Microphone unavailable: ${error.message}`
+        : "Microphone unavailable.";
+  }
+}
 export class LiveSession {
   private peer?: RTCPeerConnection;
   private channel?: RTCDataChannel;
@@ -80,10 +99,11 @@ export class LiveSession {
       this.peer = peer;
       peer.ontrack = (event) => this.hear(event.track);
       peer.ondatachannel = ({ channel }) => this.bindChannel(channel);
-      this.mic = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
+      this.mic = await navigator.mediaDevices
+        .getUserMedia({ audio: true, video: false })
+        .catch((error: unknown) => {
+          throw new Error(micProblem(error));
+        });
       if (this.disposed) {
         this.mic.getTracks().forEach((t) => t.stop());
         return;

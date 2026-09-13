@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIVE_ICE_SERVERS, LIVE_LIMIT_MS, LiveSession } from "../src/live";
+import { LIVE_ICE_SERVERS, LIVE_LIMIT_MS, LiveSession, micProblem } from "../src/live";
 import type { AvatarState, LiveEvent } from "../src/protocol";
 
 function harness(options: { resumeError?: boolean; closeOnBind?: boolean } = {}) {
@@ -445,4 +445,13 @@ test("a rejected command or moderation error keeps the dialogue open; a startup 
   } finally {
     early.restore();
   }
+});
+
+test("getUserMedia failures explain what to do instead of a bare DOMException name", () => {
+  const dom = (name: string) => Object.assign(new Error("denied"), { name });
+  assert.match(micProblem(dom("NotAllowedError")), /Privacy & Security › Microphone/);
+  assert.match(micProblem(dom("NotFoundError")), /No microphone found/);
+  assert.match(micProblem(dom("NotReadableError")), /busy/);
+  assert.match(micProblem(new Error("weird")), /Microphone unavailable: weird/);
+  assert.equal(micProblem(undefined), "Microphone unavailable.");
 });

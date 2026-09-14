@@ -533,10 +533,29 @@ function swatch(color: string, selected: boolean, onClick: () => void) {
   return button;
 }
 function paintDraft(next: AvatarLook) {
+  const active = document.activeElement;
+  const focusKey =
+    active instanceof HTMLButtonElement && active.parentElement?.id
+      ? {
+          containerId: active.parentElement.id,
+          value: active.getAttribute("aria-label") ?? active.textContent ?? "",
+        }
+      : null;
   draftLook = normalizeLook(next);
   avatar?.applyLook(draftLook);
   preview?.applyLook(draftLook);
   renderStudio();
+  if (focusKey) {
+    const container = document.getElementById(focusKey.containerId);
+    const replacement = container
+      ? Array.from(container.querySelectorAll("button")).find(
+          (button) =>
+            (button.getAttribute("aria-label") ?? button.textContent ?? "") ===
+            focusKey.value,
+        )
+      : undefined;
+    replacement?.focus();
+  }
   el("avatar-status").textContent = looksEqual(draftLook, savedLook)
     ? ""
     : "Unsaved changes — choose Save look.";
@@ -611,13 +630,14 @@ avatarDialog.onclose = closeStudio;
 el("reset-avatar").onclick = () => paintDraft(defaultLook);
 el("save-avatar").onclick = async () => {
   const button = el<HTMLButtonElement>("save-avatar");
+  const pending = { ...draftLook };
   button.disabled = true;
   el("avatar-status").textContent = "Saving look…";
   try {
-    const written = await api<{ avatar: AvatarLook }>("avatar", draftLook);
+    const written = await api<{ avatar: AvatarLook }>("avatar", pending);
     const confirmed = await api<Snapshot>("state");
-    const kept = normalizeLook(written.avatar ?? confirmed.avatar);
-    if (!looksEqual(kept, normalizeLook(confirmed.avatar)))
+    const kept = normalizeLook(pending);
+    if (!looksEqual(kept, normalizeLook(written.avatar ?? confirmed.avatar)))
       throw new Error("The look did not stay saved. Please try again.");
     snapshot = confirmed;
     rememberLook(kept);

@@ -1,425 +1,184 @@
 # Miette — French, your next chapter
 
-A parent-supervised French-practice prototype with a comic 3D companion.
-Demo, school-lesson cards, and **avatar customization work with no API key**.
-Live voice is optional, paid, and off by default.
+A parent-supervised French practice app with a comic 3D companion.
 
-This is not a public tutoring service, a parental-control product, or a
-certified language assessment. Each clone runs on that computer only.
+- **Demo** and **avatar customization** work with no API key.
+- **Live voice** is optional and paid. You add **your own** OpenAI Live key
+  if you want spoken practice.
+- This is not a public tutoring service. It runs on your computer only.
 
-**Forks should not use someone else’s OpenAI key — including this repo’s
-author.** Sharing a Live key would put that person’s bill, quota, and
-provider account on every fork. Keep Live on your own project key, or skip
-Live and use demo + customize.
+Do not use someone else’s OpenAI key. Each household that wants voice
+creates its own project key and budget.
 
-## Fork, run, customize (no API)
+## What you need
 
-You need **Node.js 26.5 or newer** and npm. The document worker uses Node’s
-network permission controls; do not run it on older versions.
+- **Node.js 26.5 or newer** and npm
+- A browser (or, on a Mac, the optional menu-bar app)
+- Optional, for Live voice: an OpenAI account with **`gpt-live-1`** access
 
-1. Click **Fork** on
-   [Malgsx/french-tutor](https://github.com/Malgsx/french-tutor).
-2. Clone **your** fork (replace `YOUR_USER`):
+## Install
 
-   ```sh
-   git clone https://github.com/YOUR_USER/french-tutor.git
-   cd french-tutor
-   npm ci
-   npm run build
-   npm start
-   ```
+Fork [Malgsx/french-tutor](https://github.com/Malgsx/french-tutor) on
+GitHub, then clone **your** copy (replace `YOUR_USER`):
 
-Open <http://localhost:3030> on that same computer.
+```sh
+git clone https://github.com/YOUR_USER/french-tutor.git
+cd french-tutor
+npm ci
+npm run build
+npm start
+```
 
-1. **Start demo** — scripted text vocabulary. No microphone. No AI calls.
+You can also clone this repository directly if you do not need a fork.
+
+Open <http://localhost:3030> on the same computer. Use `localhost`, not
+`127.0.0.1`.
+
+On a Mac, `npm run desktop` builds the UI, starts the server if needed,
+and opens the floating-avatar window. Keep that Terminal open.
+
+## Try it without a key
+
+1. **Start demo** — typed vocabulary. No microphone. No AI calls.
    Try `merci` on the hello card for a gentle correction, then `bonjour`
-   for success. **Say it again**, **A little hint**, **Next word**, and the
-   word cards guide repetition. Progress counts typed practice, never accent
-   scores.
-2. **Customize avatar** (top navigation) — change Miette’s hair, colors, and
-   outfit. Presets: Classic, Sunrise, Midnight, Garden. **Save look** stores
-   it in local learning data (`.local/state.json`). Nothing is sent to
-   OpenAI. Close without saving to keep the last saved look.
+   for success. Use **Say it again**, **A little hint**, **Next word**,
+   and the word cards. Progress counts typed practice, not accent scores.
+2. **Customize avatar** (top of the page) — hair, colors, and outfit.
+   Presets: Classic, Sunrise, Midnight, Garden. **Save look** keeps it on
+   this computer. Nothing is sent to OpenAI.
 3. **Parent settings** — age band, language support, difficulty, optional
-   transcript retention, and school-lesson import. No password in this local
-   version.
+   transcript saving, and school-lesson import.
 
-Demo and avatar are enough to explore the app. To talk with Miette in real
-time, add **your own** GPT Live key in the next section.
+## Add your GPT Live key (real-time voice)
 
-`npm run desktop` builds the UI, starts the server if needed, and opens the
-macOS menu-bar app. Keep that Terminal open. Without a private key and
-`LIVE_ENABLED=true`, it stays demo-only.
+Spoken practice uses **OpenAI Live** (`gpt-live-1`). People often call this
+“Realtime.” This app does **not** use the older `/v1/realtime` URL, and it
+does not accept OpenRouter or Anthropic keys.
 
-`npm run dev` also runs the broker; it does **not** run Vite HMR. Rebuild
-after frontend edits. `npm start` must run from this folder so it finds
-`dist/` and `.env`.
+Your key stays on your computer. The browser never sees it.
 
-## After you fork: add your GPT Live key
-
-Spoken practice uses **OpenAI Live** (`gpt-live-1`) — the current real-time
-voice API. People still call it “Realtime”; this app does **not** use the
-older `/v1/realtime` endpoint or an OpenRouter / Anthropic key.
-
-Each fork uses **that household’s** project key. Do not paste a key from
-this repo, a chat, or another person’s `.env`. The key stays in your local
-server environment. The browser never receives it.
-
-### 1. Get a key that can call Live
+### 1. Create a key
 
 1. Sign in at [platform.openai.com](https://platform.openai.com).
-2. Create or pick a **project** and add a billing method plus a budget
-   alert. Live is billed by the minute.
-3. Confirm the project can use **`gpt-live-1`**:
-   [model page](https://developers.openai.com/api/docs/models/gpt-live-1).
-4. Create a **project API key**:
+2. Create or pick a **project**. Add billing and a budget alert. Live is
+   billed by the minute.
+3. Confirm the project can use
+   [`gpt-live-1`](https://developers.openai.com/api/docs/models/gpt-live-1).
+4. Create a **project API key** under
    [API keys](https://platform.openai.com/settings/organization/api-keys).
-   Copy it once. It should start with `sk-`.
+   It should start with `sk-`.
 
-Guides: [Live getting started](https://developers.openai.com/api/docs/guides/live),
-[WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?api=live).
+More detail: [Live getting started](https://developers.openai.com/api/docs/guides/live).
 
-### 2. Put the key only on your machine
+### 2. Save it locally
 
-From your fork folder:
+In your project folder:
 
 ```sh
 cp .env.example .env
 chmod 600 .env
 ```
 
-Open `.env` and set **both** lines (the name `OPENAI_API_KEY` is required
-even though the product is Live / real-time voice):
+Edit `.env` and set both lines:
 
 ```
 LIVE_ENABLED=true
 OPENAI_API_KEY=sk-your-project-key-here
 ```
 
-No quotes unless the key itself contains spaces (it should not). No
-`VITE_OPENAI_API_KEY`. Do not commit `.env` — Git already ignores it.
+Do not put the key in `VITE_*` or in any file you commit. `.env` is already
+ignored by Git.
 
-**macOS / zsh alternative** (key stays in that Terminal only, not on disk):
+### 3. Check and start
 
-```sh
-cd "/path/to/your/french-tutor"
-read -rs 'OPENAI_API_KEY?OpenAI project key (hidden): '; printf '\n'
-export OPENAI_API_KEY
-npm run desktop:live
-```
-
-### 3. Confirm, then start Live
-
-Stop any Miette server that was started **without** the key. Reusing it
-cannot pick up a new `.env`.
+Stop any Miette server that was started without the key. Then:
 
 ```sh
 npm run doctor
-```
-
-Doctor reports whether a key is present and whether OpenAI accepts it. It
-never prints the secret.
-
-Then start with Live allowed:
-
-```sh
 npm run desktop:live
 ```
 
-Or, for the browser only:
+On any computer, you can use the browser instead of the Mac app:
 
 ```sh
 npm run build
 LIVE_ENABLED=true npm start
 ```
 
-Open <http://localhost:3030> (not `127.0.0.1`). Choose **Live voice**, tick
-the parent-approval box, allow the microphone, and talk. Use **End
-session** when you are done. Mute does **not** stop billing.
+Open <http://localhost:3030>, choose **Live voice**, approve the paid
+session, and allow the microphone. **End session** when you are done.
+**Mute mic** does not stop billing.
 
 ### If Live stays off
 
 | What you see | What to do |
 | ------------ | ---------- |
-| “Live voice off” / pill explains Live is disabled | `LIVE_ENABLED` must be the exact word `true`. Restart the server after editing `.env`. |
-| Doctor: no key / key does not start with `sk-` | Fix `OPENAI_API_KEY` in `.env` or export it in **this** Terminal. |
-| Doctor: OpenRouter (`sk-or-`) or Anthropic (`sk-ant-`) | Those keys will not work. Use an OpenAI project key. |
-| HTTP 401 / 403 | The key or project cannot call Live. Fix access privately; do not retry in a loop. |
-| Microphone blocked | Browser site settings, or macOS **System Settings → Privacy & Security → Microphone** (Electron if you used desktop). |
-| Already-running demo server | Quit that Terminal / process first, then `desktop:live` or `LIVE_ENABLED=true npm start`. |
+| “Live voice off” | `LIVE_ENABLED` must be the exact word `true`. Restart after editing `.env`. |
+| Doctor says there is no key | Add `OPENAI_API_KEY` to `.env` or export it in this Terminal. |
+| Doctor mentions OpenRouter or Anthropic | Use an OpenAI project key that starts with `sk-` (not `sk-or-` or `sk-ant-`). |
+| HTTP 401 or 403 | The key or project cannot call Live. Fix access; do not keep retrying. |
+| Microphone blocked | Allow the mic for this site, or on a Mac: **System Settings → Privacy & Security → Microphone**. |
+| Still demo-only after adding a key | Quit the old server first, then start with `desktop:live` or `LIVE_ENABLED=true`. |
 
-After a prompt-only session, run `unset OPENAI_API_KEY` in that Terminal.
-A Terminal export wins over `.env` if both exist.
+## Using Live voice
 
-## This Mac (author install)
+- Sessions last up to **10 minutes**. Pause keeps the session open, so time
+  still counts.
+- You can interrupt Miette and speak; **Interrupt** silences her voice.
+- OpenAI’s listed Live price (reviewed September 13, 2026) is about
+  $0.05/minute plus a short setup charge. Check current pricing before you
+  start.
+- A parent should stay nearby. Generated speech can make mistakes and is
+  not pre-screened word by word.
 
-The recovered files for this household are in **`/Users/malgsx/French Tutor`**.
-The separate Home checkout is `/Users/malgsx/Home` and is unchanged.
-Credentials (`.env` and `.env.*`), learning data/screenshots (`.local/`),
-dependencies and build output are ignored.
+## School lessons
 
-The default Node on this Mac is 25.2.1. The desktop command automatically
-uses an isolated Node 26.5 runtime; no system Node upgrade is needed.
+1. End any live session. Open **Parent settings**.
+2. Upload a PDF, DOCX, or UTF-8 TXT (5 MB max), or paste text.
+3. Review the text. Remove names, school details, and anything private.
+   Reading a file does not send it to OpenAI.
+4. Add a title and choose **Approve & save lesson**. Live uses that text.
+   Up to twelve `French = English` lines become demo cards.
 
-```sh
-cd "/Users/malgsx/French Tutor"
-npm run desktop
-```
+## Privacy on this computer
 
-An already-running Miette server is reused without changing its live
-settings. An unrelated service on port 3030 is left untouched and reported
-as a conflict. Quit from the menu-bar menu or press Ctrl+C to close the app
-and any server this command started. A reused server is never stopped by
-the launcher. The launcher strips the API key from Electron’s environment.
+- Learning data (settings, lesson, progress, optional transcripts, avatar
+  look) stays in `.local/state.json` on your machine.
+- Audio is not recorded by this app. Live sends microphone audio and the
+  approved lesson to OpenAI.
+- Transcripts are off by default. If you turn them on, only the latest 100
+  fragments are saved here. Turning them off deletes them.
+- **Delete all learning data** resets settings, lesson, progress,
+  transcripts, and the avatar look.
+- Anyone who can use this computer can change settings. Do not put the app
+  on a public website.
 
-To rerun checks under the required runtime:
-
-```sh
-env -u OPENAI_API_KEY npm exec --yes --package=node@26.5.0 -- sh -c 'npm run check && npm test && npm run build && npm audit'
-# Requires port 3030 to be free:
-env -u OPENAI_API_KEY npm exec --yes --package=node@26.5.0 -- npx tsx tests/desktop.smoke.ts
-env -u OPENAI_API_KEY npm exec --yes --package=node@26.5.0 -- npx tsx tests/startup.smoke.ts
-```
-
-## Private Amp orb
-
-Use the personal Amp project [mal/french-tutor](https://ampcode.com/@mal/french-tutor),
-linked to this GitHub repository. Start a **New Orb** for that project. The
-orb runs the browser tutor, not the macOS menu-bar app. Do not use
-`desktop:live` there. Invited collaborators share that orb’s Live
-configuration — do not treat the orb as a public demo for forks.
-
-1. In that project’s **Secrets & Env Vars**, privately configure
-   `OPENAI_API_KEY` if it is not already supplied by your personal settings.
-   A key scoped only to another project is not sufficient. Never paste the
-   key into a thread, setup script, service command or Git file.
-2. **Live is already enabled for the orb service** in `.amp/services.yaml`:
-   `env: { LIVE_ENABLED: "true" }`. The name is case-sensitive and all
-   uppercase. This is ordinary configuration, not a secret. A missing key
-   still disables Live. To disable Live, change that service value to
-   `"false"` and restart it.
-3. `.agents/setup` installs dependencies with Node 26.5 and checks/builds
-   the web app. It strips the OpenAI key from its process, skips the
-   Electron binary, and does not start services or save credentials.
-4. In the orb Terminal, run `amp orb services ensure`. Amp supplies `PORT`,
-   `PUBLIC_URL` and `AMP_ORB=1`; do not copy a localhost `APP_ORIGIN` or
-   hardcode a generated portal hostname.
-5. Open the exact generated portal URL **in a new browser tab**, signed in
-   as the thread owner or an invited collaborator. Keep the portal private.
-   Microphone access should happen in the top-level HTTPS page, not the
-   embedded Portal pane.
-
-After saving or changing a secret:
-
-```sh
-amp orb restart-processes
-```
-
-See [Handling Secrets](https://ampcode.com/docs/orbs/handling-secrets).
-For code or `.amp/services.yaml` only:
-
-```sh
-amp orb service restart tutor
-amp orb service status tutor
-```
-
-The service prints only whether Live is available, never the key. A 403
-means the viewer is not an authorized thread collaborator, or a write used
-the wrong origin. Only `/healthz` is exempt. This header-based protection
-is for Amp’s trusted proxy, **not** generic hosting. Orb data stays in that
-orb’s ignored `.local/state.json`. Do not put family data into setup
-snapshots.
-
-### Environment
-
-The server reads environment variables, then an optional ignored `.env` in
-this folder (next to `package.json`).
-
-| Variable         | Default / meaning                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| `PORT`           | `3030`; server binds only to `127.0.0.1`                                                            |
-| `APP_ORIGIN`     | Exact browser origin (scheme, host, port); defaults to `PUBLIC_URL`, then `http://localhost:<PORT>` |
-| `AMP_ORB`        | Amp sets `1` in orbs, enabling collaborator-only access and requiring HTTPS `PUBLIC_URL`            |
-| `PUBLIC_URL`     | Amp-generated portal URL; in an orb this takes precedence over `APP_ORIGIN`                         |
-| `LIVE_ENABLED`   | Only the literal `true` permits live session creation                                               |
-| `OPENAI_API_KEY` | Server-only OpenAI project key; required for live                                                   |
-| `DATA_FILE`      | `.local/state.json`; local settings, approved plan, progress, optional transcripts, avatar look     |
-
-On macOS, the desktop shell trusts **only** `http://localhost:3030/`. Do
-not substitute `127.0.0.1` in the browser address because cross-origin
-writes are rejected.
-
-### Local access only
-
-The parent-password gate has been removed for local testing. Anyone using
-this computer can change settings, the avatar, and (if a key is present)
-approve live usage. Keep the broker on loopback. Do not expose this
-prototype publicly or deploy it without restoring access controls.
-
-## Live voice (how the paid path works)
-
-Set `OPENAI_API_KEY` privately and `LIVE_ENABLED=true`, restart the broker,
-select **Live voice**, and approve the cost/data-sharing checkbox. Browser
-microphone permission is requested only then.
-
-The broker uses the current official **`POST /v1/live/sessions`** JSON flow:
-
-- `session.model: "gpt-live-1"`, `store: false`, client delegation, masculine
-  `meridian` voice. WebRTC negotiates audio format; no format override is sent.
-- The browser adds microphone tracks and the `oai-events` data channel before
-  generating its offer, gathers ICE, and sends the offer to the local
-  broker. Only session ID and answer SDP return to the browser, never the key.
-- HTTP creation starts the session. Wait for `session.started`; do not send
-  `session.start`, Realtime commands, or old conversation/reasoning items.
-- Transcript deltas remain in memory for context. `session.delegation.created`
-  has metadata, not a task prompt. The application consults its current lesson
-  and recent transcript and returns `session.commentary.append` with the exact
-  opaque delegation ID. No Responses model, arbitrary tools, web search, shell,
-  or external retrieval is enabled. This backend is deliberately deterministic.
-- **End session** sends `session.close`, mutes input/output, waits up to 15
-  seconds for `session.closed`, then releases media and peer resources.
-
-The UI reports microphone state separately from the avatar. **Mute mic**
-disables the device track but does not end billing. **Interrupt** silences
-playback and asks the model to stop. The status pill under the avatar starts
-live when idle. While live, the pill is a pause/play button: pause keeps the
-session open, so live time is still billed. The browser ends practice after
-ten minutes; this is not a tamper-proof spending cap. Starts are limited to
-one per minute per broker.
-
-OpenAI’s documentation reviewed September 13, 2026 lists $0.05/minute,
-billed by the second, and a 15-second WebRTC initialization charge credited
-against the running duration. Check current pricing before use.
-Unsuccessful initialization may still incur a charge. A 401/403 or
-model-access failure needs key/project access review, not a fallback to a
-remembered Realtime endpoint.
-
-Official references:
-
-- [Getting started](https://developers.openai.com/api/docs/guides/live)
-- [WebRTC contract](https://developers.openai.com/api/docs/guides/voice-webrtc?api=live)
-- [Client delegation](https://developers.openai.com/api/docs/guides/live-delegation?delegation-mode=client)
-- [Session lifecycle, voices and close](https://developers.openai.com/api/docs/guides/live-conversations)
-- [Model pricing/access](https://developers.openai.com/api/docs/models/gpt-live-1)
-- [Provider data controls](https://developers.openai.com/api/docs/guides/your-data)
-
-## School lessons and privacy
-
-1. End live practice and open **Parent settings**.
-2. Choose a PDF, DOCX, or UTF-8 TXT of at most 5 MiB, or paste text.
-3. Review the extracted text. Remove names, school/contact details, sensitive
-   information, and irrelevant instructions. Extraction alone does not save
-   or send anything to OpenAI.
-4. Add a title and choose **Approve & save lesson**. The approved text is
-   used by the next live session. Up to twelve `French = English` lines
-   become demo cards.
-
-The worker runs as a short-lived permission-restricted Node process with a
-stripped environment, no network/writes/addons/child-process access, an
-8-second timeout and a 128 MiB V8 heap limit. Originals are held in memory
-and discarded. Only plain text is returned, capped at 20,000 characters.
-PDFs are capped at 50 pages. Node permissions are defense in depth, **not
-an OS isolation boundary**.
-
-Saved state uses a mode-700 directory and atomic mode-600 file replacement.
-There is currently no parent authentication.
-
-- Audio is not recorded by this app. Live sends audio and approved lesson
-  text to OpenAI. `store:false` does **not** promise Zero Data Retention.
-- Captions are memory-only by default. Opt-in retention saves the latest 100
-  fragments, grouped by local day, with Markdown / Word / JSON export.
-  Turning retention off deletes saved transcripts immediately.
-- **Remove school lesson** clears the approved plan and vocabulary progress.
-  **Delete all learning data** resets settings, plan, progress, transcripts,
-  and the avatar look.
-- Prompts request brief age-appropriate French lessons. Generated speech is
-  **not pre-screened**. Parent supervision is essential.
-
-## macOS menu-bar / floating-avatar app
+## Mac menu-bar app
 
 ```sh
 npm run desktop
 ```
 
-The transparent, always-on-top window has a draggable top bar. **Avatar only**
-shrinks it to 230×280; drag the character to move it and select **Open chat**
-to expand. End live voice before compacting so microphone controls are never
-hidden. Hide, close, lock-screen and suspend release voice capture. Closing
-the window does not quit the menu-bar app.
+The window stays on top. Drag the top bar to move it. **Avatar only**
+shrinks it; **Open chat** expands it. End live voice before shrinking so
+mic controls stay available. Hide, close, or lock the screen to release
+the microphone. Closing the window does not quit the menu-bar app.
 
-The renderer has context isolation, no Node integration, sandboxing, blocked
-popups/webviews/navigation, and an audio-only permission allowlist for the
-trusted local broker. The desktop does not read `.env` or use the OpenAI
-key.
+## Settings you might change
 
-**Why Electron rather than Swift?** It shares the WebRTC, lesson UI and
-Three.js implementation with the web app. Nothing here claims Puck’s
-implementation or uses its design or assets.
+These go in `.env` next to `package.json`, or in your Terminal. Existing
+Terminal values win.
 
-### Packaging and Apple signing
-
-`npm run desktop:pack` on a Mac builds an unpacked local app. It contains
-the desktop shell, **not** a bundled broker, Node runtime, updater, or
-one-click installer. Do not treat an unsigned build as ready to distribute.
-
-For distribution, a Mac owner must choose an owned reverse-DNS application
-ID, obtain their own Developer ID certificate, sign and notarize with
-protected credentials, and verify on real macOS. Never commit certificates
-or API keys. Linux/Xvfb smoke cannot establish TCC, Gatekeeper, or
-notarization.
-
-## Avatar customization
-
-`src/avatar.ts` builds an original male comic adventurer from Three.js
-shapes: purple spiked hair, a lavender coat with diagonal gold trim and a
-star pin. There are no downloaded character models, branded swords,
-franchise marks, costumes, names, or proprietary artwork.
-
-**In the app:** **Customize avatar** opens a studio with a live preview.
-Looks persist through `POST /api/avatar` into local state. Hair styles:
-spiky, short, wavy. Outfits: classic coat, hoodie, vest. Colors: hair,
-skin, eyes, jacket, coat/layer, accent.
-
-The `createAvatar(host, look)` boundary returns `setState(state)`,
-`applyLook(look)`, and `dispose()`. `AvatarState` in `src/protocol.ts` has
-seven states: **idle, listening, thinking (delegating), speaking,
-correction, success, error**. Live speaking is driven by output-audio
-energy, not transcript timing. Reduced-motion preferences are respected.
-
-For a polished replacement, commission/license an original rigged GLB and
-keep Three.js, or replace `createAvatar` with a Rive runtime in the same
-host. Preserve transparent compact mode and microphone controls. No Rive
-dependency is required today.
-
-## Source map and verification
-
-| Area                             | Files                                                                                           |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Broker/config                    | `server/app.ts`, `server/index.ts`                                                              |
-| Lesson prompts/exercises/storage | `server/lesson.ts`, `server/store.ts`                                                           |
-| Upload/extraction                | `server/upload.ts`, `server/extract.mjs`                                                        |
-| Avatar look                      | `src/avatar-look.ts`, `src/avatar.ts`                                                           |
-| WebRTC/events/lifecycle          | `src/live.ts`, `src/protocol.ts`                                                                |
-| Web UI/avatar                    | `src/main.ts`, `src/avatar.ts`, `src/*.css`, `web/index.html`                                   |
-| Desktop shell                    | `desktop/main.cjs`, `desktop/preload.cjs`                                                       |
-| Tests                            | `tests/core.test.ts`, `tests/avatar.test.ts`, `tests/live.test.ts`, `tests/desktop.smoke.ts`    |
+| Name             | What it does                                                              |
+| ---------------- | ------------------------------------------------------------------------- |
+| `LIVE_ENABLED`   | Must be exactly `true` to allow Live                                      |
+| `OPENAI_API_KEY` | Your OpenAI project key (server only)                                     |
+| `PORT`           | Default `3030`                                                            |
+| `APP_ORIGIN`     | Browser origin; default `http://localhost:3030`                           |
+| `DATA_FILE`      | Where local data is stored; default `.local/state.json`                   |
 
 ```sh
-npm ci
-npm run check && npm test && npm run build && npm audit
-
-# Stop anything on port 3030 first; smoke owns an isolated mock broker.
-npx tsx tests/desktop.smoke.ts                   # macOS with a desktop
-xvfb-run -a npx tsx tests/desktop.smoke.ts       # Linux with xvfb + xauth
-
-npx tsx tests/desktop.interaction.ts
+npm run doctor
 ```
 
-All default tests are synthetic, local and free; API requests are mocked.
-The Three.js production chunk currently produces Vite’s >500 kB advisory;
-this is not suppressed.
-
-Before a paid smoke test, confirm the project key is present without
-displaying it, and explicitly approve one fresh session. Keep `store:false`,
-close within seconds, and record only status/event types — not credentials,
-SDP, or conversation history.
+checks whether Live is configured, without printing your key.

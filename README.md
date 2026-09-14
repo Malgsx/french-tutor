@@ -17,13 +17,17 @@ Live and use demo + customize.
 You need **Node.js 26.5 or newer** and npm. The document worker uses Node’s
 network permission controls; do not run it on older versions.
 
-```sh
-git clone https://github.com/Malgsx/french-tutor.git
-cd french-tutor
-npm ci
-npm run build
-npm start
-```
+1. Click **Fork** on
+   [Malgsx/french-tutor](https://github.com/Malgsx/french-tutor).
+2. Clone **your** fork (replace `YOUR_USER`):
+
+   ```sh
+   git clone https://github.com/YOUR_USER/french-tutor.git
+   cd french-tutor
+   npm ci
+   npm run build
+   npm start
+   ```
 
 Open <http://localhost:3030> on that same computer.
 
@@ -40,17 +44,8 @@ Open <http://localhost:3030> on that same computer.
    transcript retention, and school-lesson import. No password in this local
    version.
 
-That is the whole fork path. You can stop here.
-
-A one-liner that only does the same clone-and-build (still no key):
-
-```sh
-git clone https://github.com/Malgsx/french-tutor.git && cd french-tutor && npm ci && npm run build && npm start
-```
-
-Do not pipe a remote script into `bash` to “install a key.” There is no
-shared Live endpoint to curl. If you want voice, create **your own** OpenAI
-project key below.
+Demo and avatar are enough to explore the app. To talk with Miette in real
+time, add **your own** GPT Live key in the next section.
 
 `npm run desktop` builds the UI, starts the server if needed, and opens the
 macOS menu-bar app. Keep that Terminal open. Without a private key and
@@ -60,61 +55,101 @@ macOS menu-bar app. Keep that Terminal open. Without a private key and
 after frontend edits. `npm start` must run from this folder so it finds
 `dist/` and `.env`.
 
-## Optional: your own Live voice
+## After you fork: add your GPT Live key
 
-Only if you want spoken practice. Each household uses its own OpenAI
-project key, budget, and alerts. The key stays on the server. The browser
-never sees it.
+Spoken practice uses **OpenAI Live** (`gpt-live-1`) — the current real-time
+voice API. People still call it “Realtime”; this app does **not** use the
+older `/v1/realtime` endpoint or an OpenRouter / Anthropic key.
 
-1. Create an OpenAI project key with **GPT-Live** access:
+Each fork uses **that household’s** project key. Do not paste a key from
+this repo, a chat, or another person’s `.env`. The key stays in your local
+server environment. The browser never receives it.
+
+### 1. Get a key that can call Live
+
+1. Sign in at [platform.openai.com](https://platform.openai.com).
+2. Create or pick a **project** and add a billing method plus a budget
+   alert. Live is billed by the minute.
+3. Confirm the project can use **`gpt-live-1`**:
+   [model page](https://developers.openai.com/api/docs/models/gpt-live-1).
+4. Create a **project API key**:
    [API keys](https://platform.openai.com/settings/organization/api-keys).
-   Official Live docs:
-   [Getting started](https://developers.openai.com/api/docs/guides/live),
-   [model access](https://developers.openai.com/api/docs/models/gpt-live-1).
-2. Copy the example env file and lock it down. Put **your** key there — not
-   a key from a chat, a gist, or this repository.
+   Copy it once. It should start with `sk-`.
 
-   ```sh
-   cp .env.example .env
-   chmod 600 .env
-   ```
+Guides: [Live getting started](https://developers.openai.com/api/docs/guides/live),
+[WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?api=live).
 
-   Edit `.env`:
+### 2. Put the key only on your machine
 
-   ```
-   LIVE_ENABLED=true
-   OPENAI_API_KEY=sk-…
-   ```
+From your fork folder:
 
-   Or paste the key only into a hidden local Terminal prompt (it is not
-   written to disk):
+```sh
+cp .env.example .env
+chmod 600 .env
+```
 
-   ```sh
-   read -rs 'OPENAI_API_KEY?OpenAI project key (hidden): '; printf '\n'
-   export OPENAI_API_KEY
-   npm run desktop:live
-   ```
+Open `.env` and set **both** lines (the name `OPENAI_API_KEY` is required
+even though the product is Live / real-time voice):
 
-3. Check the setup without printing the key:
+```
+LIVE_ENABLED=true
+OPENAI_API_KEY=sk-your-project-key-here
+```
 
-   ```sh
-   npm run doctor
-   ```
+No quotes unless the key itself contains spaces (it should not). No
+`VITE_OPENAI_API_KEY`. Do not commit `.env` — Git already ignores it.
 
-4. Restart the broker (`npm run desktop:live` or `LIVE_ENABLED=true npm start`).
-   Choose **Live voice**, approve the paid session, and allow the microphone.
-   End promptly with **End session**.
+**macOS / zsh alternative** (key stays in that Terminal only, not on disk):
 
-`npm run desktop:live` sets `LIVE_ENABLED=true` and starts the same
-server/desktop pair. It never prompts for, saves, or supplies a key. Without
-a key, Live stays disabled. You still approve each paid session in the app.
+```sh
+cd "/path/to/your/french-tutor"
+read -rs 'OPENAI_API_KEY?OpenAI project key (hidden): '; printf '\n'
+export OPENAI_API_KEY
+npm run desktop:live
+```
 
-Existing environment values win over `.env`. Never commit `.env` or put a
-key in `VITE_*`, renderer code, Electron preload, screenshots, logs, or a
-chat message. An HTTP 401 means fix authentication privately; do not retry
-automatically. After a prompt-only session, `unset OPENAI_API_KEY`. If a
-demo server is already running, stop it first: reusing it cannot change its
-environment or enable Live.
+### 3. Confirm, then start Live
+
+Stop any Miette server that was started **without** the key. Reusing it
+cannot pick up a new `.env`.
+
+```sh
+npm run doctor
+```
+
+Doctor reports whether a key is present and whether OpenAI accepts it. It
+never prints the secret.
+
+Then start with Live allowed:
+
+```sh
+npm run desktop:live
+```
+
+Or, for the browser only:
+
+```sh
+npm run build
+LIVE_ENABLED=true npm start
+```
+
+Open <http://localhost:3030> (not `127.0.0.1`). Choose **Live voice**, tick
+the parent-approval box, allow the microphone, and talk. Use **End
+session** when you are done. Mute does **not** stop billing.
+
+### If Live stays off
+
+| What you see | What to do |
+| ------------ | ---------- |
+| “Live voice off” / pill explains Live is disabled | `LIVE_ENABLED` must be the exact word `true`. Restart the server after editing `.env`. |
+| Doctor: no key / key does not start with `sk-` | Fix `OPENAI_API_KEY` in `.env` or export it in **this** Terminal. |
+| Doctor: OpenRouter (`sk-or-`) or Anthropic (`sk-ant-`) | Those keys will not work. Use an OpenAI project key. |
+| HTTP 401 / 403 | The key or project cannot call Live. Fix access privately; do not retry in a loop. |
+| Microphone blocked | Browser site settings, or macOS **System Settings → Privacy & Security → Microphone** (Electron if you used desktop). |
+| Already-running demo server | Quit that Terminal / process first, then `desktop:live` or `LIVE_ENABLED=true npm start`. |
+
+After a prompt-only session, run `unset OPENAI_API_KEY` in that Terminal.
+A Terminal export wins over `.env` if both exist.
 
 ## This Mac (author install)
 

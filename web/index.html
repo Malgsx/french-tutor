@@ -18,7 +18,12 @@
           >Miette<span>✦</span><small>FRENCH / YOUR NEXT CHAPTER</small></a
         >
         <nav aria-label="Settings">
-          <button id="school">
+          <button id="customize">
+            ✦
+            <span
+              >Customize avatar<small>Hair, colors, outfit</small></span
+            ></button
+          ><button id="school">
             ▤
             <span>School mission<small>PDF, DOCX, or text</small></span></button
           ><button id="parents">⚙ <span>Parent settings</span></button>
@@ -276,6 +281,55 @@
         </section>
       </div>
       <p id="parent-status" role="status"></p>
+    </dialog>
+    <dialog id="avatar-dialog" aria-labelledby="avatar-title">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">YOUR LOOK</p>
+          <h2 id="avatar-title">Dress the chapter.</h2>
+        </div>
+        <button id="close-avatar" aria-label="Close avatar studio">×</button>
+      </div>
+      <p>
+        Change Miette’s hair, colors, and outfit. Nothing is sent to OpenAI.
+        Close without saving to keep the last saved look.
+      </p>
+      <div class="avatar-studio">
+        <div class="avatar-preview-wrap">
+          <div
+            id="avatar-preview"
+            class="avatar-preview"
+            role="img"
+            aria-label="Miette preview"
+          ></div>
+        </div>
+        <div class="avatar-controls">
+          <p class="eyebrow">PRESETS</p>
+          <div id="avatar-presets" class="chip-row"></div>
+          <p class="eyebrow">HAIR</p>
+          <div id="avatar-hair-style" class="chip-row"></div>
+          <div id="avatar-hair" class="swatch-row"></div>
+          <p class="eyebrow">SKIN</p>
+          <div id="avatar-skin" class="swatch-row"></div>
+          <p class="eyebrow">EYES</p>
+          <div id="avatar-eyes" class="swatch-row"></div>
+          <p class="eyebrow">OUTFIT</p>
+          <div id="avatar-outfit" class="chip-row"></div>
+          <p class="eyebrow">JACKET</p>
+          <div id="avatar-jacket" class="swatch-row"></div>
+          <p class="eyebrow">COAT / LAYER</p>
+          <div id="avatar-coat" class="swatch-row"></div>
+          <p class="eyebrow">ACCENT</p>
+          <div id="avatar-accent" class="swatch-row"></div>
+          <div class="avatar-actions">
+            <button id="save-avatar" class="primary" type="button">
+              Save look
+            </button>
+            <button id="reset-avatar" type="button">Back to classic</button>
+          </div>
+          <p id="avatar-status" role="status"></p>
+        </div>
+      </div>
     </dialog>
     <dialog id="live-dialog" aria-labelledby="live-title">
       <h2 id="live-title">Start a paid live session?</h2>

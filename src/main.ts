@@ -1,5 +1,18 @@
 import "./style.css";
 import { createAvatar } from "./avatar";
+import {
+  defaultLook,
+  hairStyles,
+  looksEqual,
+  matchingPreset,
+  normalizeLook,
+  outfits,
+  presets,
+  swatches,
+  type AvatarLook,
+  type HairStyle,
+  type Outfit,
+} from "./avatar-look";
 import { api, commentary, type AvatarState, type Fragment } from "./protocol";
 import { LiveSession, delegatedLesson } from "./live";
 import { stageView, UNAVAILABLE_REASON, type MicAction } from "./stage";
@@ -29,8 +42,12 @@ type Snapshot = {
   planTitle: string | null;
   liveAvailable: boolean;
   liveReason?: string | null;
+  avatar?: AvatarLook;
 };
 let snapshot: Snapshot;
+let savedLook: AvatarLook = { ...defaultLook };
+let draftLook: AvatarLook = { ...defaultLook };
+let preview: ReturnType<typeof createAvatar> | undefined;
 let index = 0;
 let demo = false;
 let live: LiveSession | undefined;
@@ -47,11 +64,18 @@ function speakMiette(text: string) {
 }
 const recorder = new Recorder(() => !!snapshot?.settings.retainTranscripts);
 let avatar: ReturnType<typeof createAvatar> | undefined;
-try {
-  avatar = createAvatar(el("avatar"));
-} catch {
-  el("avatar").textContent =
-    "✦ Miette · 3D unavailable on this device. Chat still works.";
+function mountAvatar(look: AvatarLook) {
+  if (avatar) {
+    avatar.applyLook(look);
+    return;
+  }
+  try {
+    avatar = createAvatar(el("avatar"), look);
+    avatar.setState(avatarState);
+  } catch {
+    el("avatar").textContent =
+      "✦ Miette · 3D unavailable on this device. Chat still works.";
+  }
 }
 function currentStage() {
   return stageView({
@@ -240,6 +264,13 @@ async function refresh() {
     `${count} / ${snapshot.words.length} words practiced`;
   el<HTMLProgressElement>("progress").max = snapshot.words.length;
   el<HTMLProgressElement>("progress").value = count;
+  const nextLook = normalizeLook(snapshot.avatar);
+  if (!el<HTMLDialogElement>("avatar-dialog").open) {
+    const changed = !looksEqual(savedLook, nextLook);
+    savedLook = nextLook;
+    draftLook = { ...nextLook };
+    if (avatar && changed) avatar.applyLook(nextLook);
+  }
   controls();
 }
 async function choose() {
@@ -455,7 +486,7 @@ el("view-transcripts").onclick = async () => {
 el("reset").onclick = async () => {
   if (
     !confirm(
-      "Delete the profile settings, school lesson, vocabulary progress, and saved transcripts? This cannot be undone.",
+      "Delete the profile settings, school lesson, vocabulary progress, saved transcripts, and avatar look? This cannot be undone.",
     )
   )
     return;
@@ -470,6 +501,156 @@ el("reset").onclick = async () => {
     report(error, "parent-status");
   }
 };
+const avatarDialog = el<HTMLDialogElement>("avatar-dialog");
+const hairStyleLabels: Record<HairStyle, string> = {
+  spiky: "Spiky",
+  short: "Short",
+  wavy: "Wavy",
+};
+const outfitLabels: Record<Outfit, string> = {
+  classic: "Classic coat",
+  hoodie: "Hoodie",
+  vest: "Vest",
+};
+function chip(label: string, selected: boolean, onClick: () => void) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chip";
+  button.textContent = label;
+  button.setAttribute("aria-pressed", String(selected));
+  button.onclick = onClick;
+  return button;
+}
+function swatch(color: string, selected: boolean, onClick: () => void) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "swatch";
+  button.style.background = color;
+  button.title = color;
+  button.setAttribute("aria-label", color);
+  button.setAttribute("aria-pressed", String(selected));
+  button.onclick = onClick;
+  return button;
+}
+function paintDraft(next: AvatarLook) {
+  const active = document.activeElement;
+  const focusKey =
+    active instanceof HTMLButtonElement && active.parentElement?.id
+      ? {
+          containerId: active.parentElement.id,
+          value: active.getAttribute("aria-label") ?? active.textContent ?? "",
+        }
+      : null;
+  draftLook = normalizeLook(next);
+  avatar?.applyLook(draftLook);
+  preview?.applyLook(draftLook);
+  renderStudio();
+  if (focusKey) {
+    const container = document.getElementById(focusKey.containerId);
+    const replacement = container
+      ? Array.from(container.querySelectorAll("button")).find(
+          (button) =>
+            (button.getAttribute("aria-label") ?? button.textContent ?? "") ===
+            focusKey.value,
+        )
+      : undefined;
+    replacement?.focus();
+  }
+  el("avatar-status").textContent = looksEqual(draftLook, savedLook)
+    ? ""
+    : "Unsaved changes — choose Save look.";
+}
+function renderStudio() {
+  const selected = matchingPreset(draftLook);
+  el("avatar-presets").replaceChildren(
+    ...presets.map((preset) =>
+      chip(preset.label, selected === preset.id, () => paintDraft(preset.look)),
+    ),
+  );
+  el("avatar-hair-style").replaceChildren(
+    ...hairStyles.map((style) =>
+      chip(hairStyleLabels[style], draftLook.hairStyle === style, () =>
+        paintDraft({ ...draftLook, hairStyle: style }),
+      ),
+    ),
+  );
+  el("avatar-outfit").replaceChildren(
+    ...outfits.map((outfit) =>
+      chip(outfitLabels[outfit], draftLook.outfit === outfit, () =>
+        paintDraft({ ...draftLook, outfit }),
+      ),
+    ),
+  );
+  for (const key of [
+    "hair",
+    "skin",
+    "eyes",
+    "jacket",
+    "coat",
+    "accent",
+  ] as const)
+    el(`avatar-${key}`).replaceChildren(
+      ...swatches[key].map((color) =>
+        swatch(color, draftLook[key] === color, () =>
+          paintDraft({ ...draftLook, [key]: color }),
+        ),
+      ),
+    );
+}
+function openStudio() {
+  draftLook = { ...savedLook };
+  el("avatar-status").textContent = "";
+  renderStudio();
+  avatarDialog.showModal();
+  preview?.dispose();
+  el("avatar-preview").replaceChildren();
+  try {
+    preview = createAvatar(el("avatar-preview"), draftLook);
+  } catch {
+    el("avatar-preview").textContent = "Preview unavailable on this device.";
+  }
+}
+function rememberLook(look: AvatarLook) {
+  savedLook = normalizeLook(look);
+  draftLook = { ...savedLook };
+  if (snapshot) snapshot.avatar = savedLook;
+  avatar?.applyLook(savedLook);
+  preview?.applyLook(savedLook);
+}
+function closeStudio() {
+  preview?.dispose();
+  preview = undefined;
+  el("avatar-preview").replaceChildren();
+  draftLook = { ...savedLook };
+  avatar?.applyLook(savedLook);
+}
+el("customize").onclick = openStudio;
+el("close-avatar").onclick = () => avatarDialog.close();
+avatarDialog.onclose = closeStudio;
+el("reset-avatar").onclick = () => paintDraft(defaultLook);
+el("save-avatar").onclick = async () => {
+  const button = el<HTMLButtonElement>("save-avatar");
+  const pending = { ...draftLook };
+  button.disabled = true;
+  el("avatar-status").textContent = "Saving look…";
+  try {
+    const written = await api<{ avatar: AvatarLook }>("avatar", pending);
+    const confirmed = await api<Snapshot>("state");
+    const kept = normalizeLook(pending);
+    if (!looksEqual(kept, normalizeLook(written.avatar ?? confirmed.avatar)))
+      throw new Error("The look did not stay saved. Please try again.");
+    snapshot = confirmed;
+    rememberLook(kept);
+    renderStudio();
+    el("avatar-status").textContent =
+      "Look saved. Miette will keep this outfit.";
+    notice("Look saved · Miette will keep this outfit.");
+  } catch (error) {
+    report(error, "avatar-status");
+  } finally {
+    button.disabled = false;
+  }
+};
 const liveDialog = el<HTMLDialogElement>("live-dialog");
 el("live").onclick = () => liveDialog.showModal();
 el("stage-toggle").onclick = stagePress;
@@ -480,7 +661,9 @@ liveDialog.onclose = () => {
   el<HTMLInputElement>("approve-live").checked = false;
 };
 let starting = false;
-async function startLive(statusTarget: "live-status" | "stage-hint" = "stage-hint") {
+async function startLive(
+  statusTarget: "live-status" | "stage-hint" = "stage-hint",
+) {
   if (live || starting) return;
   starting = true;
   try {
@@ -518,7 +701,9 @@ async function startLive(statusTarget: "live-status" | "stage-hint" = "stage-hin
     else
       hint(
         "stage-hint",
-        error instanceof Error ? error.message : "Something went wrong. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
       );
   } finally {
     starting = false;
@@ -558,6 +743,9 @@ if (window.desktop) {
 }
 window.addEventListener("pagehide", () => {
   live?.dispose();
+  preview?.dispose();
   avatar?.dispose();
 });
-void refresh().catch((error) => report(error));
+void refresh()
+  .catch((error) => report(error))
+  .finally(() => mountAvatar(savedLook));

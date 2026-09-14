@@ -820,22 +820,8 @@ pre {
   left: -10000px;
 }
 .desktop-bar,
-#expand-avatar,
-#customize-stage {
+#expand-avatar {
   display: none;
-}
-#customize-stage {
-  display: block;
-  position: absolute;
-  left: 18px;
-  bottom: 54px;
-  z-index: 3;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 7px 12px;
-  background: #fffdf6;
-  border: 2px solid var(--ink);
-  box-shadow: 2px 2px 0 var(--ink);
 }
 #avatar-dialog {
   width: min(920px, calc(100vw - 28px));
@@ -983,12 +969,6 @@ pre {
   }
   .avatar-preview {
     height: 240px;
-  }
-  #customize-stage {
-    left: 12px;
-    bottom: 50px;
-    font-size: 10px;
-    padding: 6px 10px;
   }
   .stage .avatar {
     width: 340px;

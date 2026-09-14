@@ -591,6 +591,13 @@ function openStudio() {
     el("avatar-preview").textContent = "Preview unavailable on this device.";
   }
 }
+function rememberLook(look: AvatarLook) {
+  savedLook = normalizeLook(look);
+  draftLook = { ...savedLook };
+  if (snapshot) snapshot.avatar = savedLook;
+  avatar?.applyLook(savedLook);
+  preview?.applyLook(savedLook);
+}
 function closeStudio() {
   preview?.dispose();
   preview = undefined;
@@ -599,10 +606,6 @@ function closeStudio() {
   avatar?.applyLook(savedLook);
 }
 el("customize").onclick = openStudio;
-el("customize-stage").onclick = (event) => {
-  event.stopPropagation();
-  openStudio();
-};
 el("close-avatar").onclick = () => avatarDialog.close();
 avatarDialog.onclose = closeStudio;
 el("reset-avatar").onclick = () => paintDraft(defaultLook);
@@ -611,11 +614,17 @@ el("save-avatar").onclick = async () => {
   button.disabled = true;
   el("avatar-status").textContent = "Saving look…";
   try {
-    await api("avatar", draftLook);
-    savedLook = { ...draftLook };
-    if (snapshot) snapshot.avatar = savedLook;
+    const written = await api<{ avatar: AvatarLook }>("avatar", draftLook);
+    const confirmed = await api<Snapshot>("state");
+    const kept = normalizeLook(written.avatar ?? confirmed.avatar);
+    if (!looksEqual(kept, normalizeLook(confirmed.avatar)))
+      throw new Error("The look did not stay saved. Please try again.");
+    snapshot = confirmed;
+    rememberLook(kept);
+    renderStudio();
     el("avatar-status").textContent =
       "Look saved. Miette will keep this outfit.";
+    notice("Look saved · Miette will keep this outfit.");
   } catch (error) {
     report(error, "avatar-status");
   } finally {

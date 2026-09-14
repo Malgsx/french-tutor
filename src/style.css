@@ -820,8 +820,98 @@ pre {
   left: -10000px;
 }
 .desktop-bar,
-#expand-avatar {
+#expand-avatar,
+#customize-stage {
   display: none;
+}
+#customize-stage {
+  display: block;
+  position: absolute;
+  left: 18px;
+  bottom: 54px;
+  z-index: 3;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+  background: #fffdf6;
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+#avatar-dialog {
+  width: min(920px, calc(100vw - 28px));
+}
+.avatar-studio {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.avatar-preview-wrap {
+  background:
+    radial-gradient(circle at 1px 1px, #73539233 1px, transparent 1.5px) right
+      bottom/7px 7px,
+    linear-gradient(135deg, #dec9f0, #c0a0de);
+  border: 2px solid var(--ink);
+  border-radius: 22px 22px 48px 22px;
+  box-shadow: 4px 4px 0 var(--ink);
+  min-height: 320px;
+}
+.avatar-preview {
+  width: 100%;
+  height: 320px;
+}
+.avatar-preview canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.avatar-controls .eyebrow {
+  margin: 16px 0 8px;
+}
+.avatar-controls .eyebrow:first-child {
+  margin-top: 0;
+}
+.chip-row,
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip,
+.swatch {
+  margin: 0;
+}
+.chip {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 7px 12px;
+  border-radius: 999px;
+}
+.chip[aria-pressed="true"],
+.swatch[aria-pressed="true"] {
+  background: var(--yellow);
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.swatch {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #cbbfd0;
+}
+.swatch[aria-pressed="true"] {
+  transform: none;
+}
+.avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+#avatar-status {
+  min-height: 1.4em;
+  margin: 8px 0 0;
 }
 .avatar[data-state="error"] {
   filter: grayscale(0.8);
@@ -887,6 +977,18 @@ pre {
   }
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+  .avatar-studio {
+    grid-template-columns: 1fr;
+  }
+  .avatar-preview {
+    height: 240px;
+  }
+  #customize-stage {
+    left: 12px;
+    bottom: 50px;
+    font-size: 10px;
+    padding: 6px 10px;
   }
   .stage .avatar {
     width: 340px;

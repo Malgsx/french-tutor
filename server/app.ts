@@ -18,6 +18,7 @@ import {
   refusalDetail,
   type LiveAccess,
 } from "./live-access";
+import { parseLook } from "../src/avatar-look";
 
 export function createApp(
   store: Store,
@@ -61,7 +62,8 @@ export function createApp(
         claims.includes("collaborator=no")
       ) {
         res.status(403).json({
-          error: "Open this private portal while signed in as the thread owner or an invited collaborator.",
+          error:
+            "Open this private portal while signed in as the thread owner or an invited collaborator.",
         });
         return;
       }
@@ -106,6 +108,7 @@ export function createApp(
       planTitle: store.state.plan?.title ?? null,
       liveAvailable: access.available,
       liveReason: access.reason,
+      avatar: store.state.avatar,
     });
   });
   app.get("/api/plan", (_req, res) => res.json(store.state.plan));
@@ -115,11 +118,9 @@ export function createApp(
     express.raw({ type: "application/octet-stream", limit: "5mb" }),
     async (req, res) => {
       if (extracting) {
-        res
-          .status(429)
-          .json({
-            error: "Another document is being read. Try again shortly.",
-          });
+        res.status(429).json({
+          error: "Another document is being read. Try again shortly.",
+        });
         return;
       }
       const format = req.query.format;
@@ -137,12 +138,10 @@ export function createApp(
         const text = await extractDocument(req.body, String(format));
         res.json({ text, words: extractWords(text) });
       } catch {
-        res
-          .status(400)
-          .json({
-            error:
-              "Could not read this document. Use a text-based PDF (up to 50 pages), DOCX, or TXT under 5 MB. Scans, encrypted PDFs and legacy DOC need conversion; you can paste text instead.",
-          });
+        res.status(400).json({
+          error:
+            "Could not read this document. Use a text-based PDF (up to 50 pages), DOCX, or TXT under 5 MB. Scans, encrypted PDFs and legacy DOC need conversion; you can paste text instead.",
+        });
       } finally {
         extracting = false;
       }
@@ -181,6 +180,16 @@ export function createApp(
     if (!parsed.data.retainTranscripts) store.clearTranscripts();
     store.save();
     res.json({ ok: true });
+  });
+  app.post("/api/avatar", (req, res) => {
+    const parsed = parseLook(req.body);
+    if (!parsed) {
+      res.status(400).json({ error: "Invalid avatar look" });
+      return;
+    }
+    store.state.avatar = parsed;
+    store.save();
+    res.json({ ok: true, avatar: parsed });
   });
   app.post("/api/reset", (_req, res) => {
     store.reset();
@@ -342,12 +351,10 @@ export function createApp(
         .parse(await upstream.json());
       res.status(201).json(data);
     } catch {
-      res
-        .status(502)
-        .json({
-          error:
-            "Live connection could not be confirmed. Do not retry automatically; initialization may have been billed.",
-        });
+      res.status(502).json({
+        error:
+          "Live connection could not be confirmed. Do not retry automatically; initialization may have been billed.",
+      });
     }
   });
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found" }));

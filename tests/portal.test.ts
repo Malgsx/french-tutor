@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createApp } from "../server/app";
 import { Store } from "../server/store";
 import { defaults } from "../server/lesson";
+import { defaultLook } from "../src/avatar-look";
 
 test("private portal protects pages, learning data and paid calls; exact collaborator and origin required", async () => {
   const dir = mkdtempSync(join(tmpdir(), "miette-portal-"));
@@ -64,6 +65,7 @@ test("private portal protects pages, learning data and paid calls; exact collabo
           .status,
         403,
       );
+      assert.equal((await post("/api/avatar", defaultLook, claim)).status, 403);
       assert.equal(
         (
           await post(

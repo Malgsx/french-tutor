@@ -1,6 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 import { defaults, type Settings, type Progress, type Plan } from "./lesson";
+import {
+  defaultLook,
+  normalizeLook,
+  type AvatarLook,
+} from "../src/avatar-look";
 
 export type TranscriptEntry = {
   role: string;
@@ -24,6 +29,7 @@ export type State = {
   plan: Plan | null;
   transcripts: TranscriptEntry[];
   sessions: TranscriptSession[];
+  avatar: AvatarLook;
 };
 export const LEGACY_SESSION = "legacy";
 export const TRANSCRIPT_LIMIT = 100;
@@ -44,6 +50,7 @@ export class Store {
       plan: null,
       transcripts: [],
       sessions: [],
+      avatar: { ...defaultLook },
     };
   }
   save() {
@@ -131,5 +138,6 @@ export function normalize(raw: unknown): State {
       transcripts,
       Array.isArray(state.sessions) ? state.sessions : [],
     ),
+    avatar: normalizeLook(state.avatar),
   };
 }

@@ -73,6 +73,12 @@ body.desktop .messages {
 body.desktop .topbar nav {
   gap: 5px;
 }
+body.desktop #customize-stage {
+  left: 10px;
+  bottom: 42px;
+  font-size: 10px;
+  padding: 5px 9px;
+}
 body.desktop .topbar nav small {
   display: none;
 }
@@ -118,7 +124,8 @@ body.avatar-only #hide,
 body.avatar-only .topbar,
 body.avatar-only .intro,
 body.avatar-only .chat,
-body.avatar-only .controls {
+body.avatar-only .controls,
+body.avatar-only #customize-stage {
   display: none !important;
 }
 body.avatar-only .shell {

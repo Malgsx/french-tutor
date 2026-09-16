@@ -1,4 +1,4 @@
-# Miette — French, your next chapter
+# Miette - French, your next chapter
 
 A parent-supervised French practice app with a comic 3D companion.
 
@@ -39,14 +39,14 @@ and opens the floating-avatar window. Keep that Terminal open.
 
 ## Try it without a key
 
-1. **Start demo** — typed vocabulary. No microphone. No AI calls.
+1. **Start demo** - typed vocabulary. No microphone. No AI calls.
    Try `merci` on the hello card for a gentle correction, then `bonjour`
    for success. Use **Say it again**, **A little hint**, **Next word**,
    and the word cards. Progress counts typed practice, not accent scores.
-2. **Customize avatar** (top of the page) — hair, colors, and outfit.
+2. **Customize avatar** (top of the page) - hair, colors, and outfit.
    Presets: Classic, Sunrise, Midnight, Garden. **Save look** keeps it on
    this computer. Nothing is sent to OpenAI.
-3. **Parent settings** — age band, language support, difficulty, optional
+3. **Parent settings** - age band, language support, difficulty, optional
    transcript saving, and school-lesson import.
 
 ## Add your GPT Live key (real-time voice)
